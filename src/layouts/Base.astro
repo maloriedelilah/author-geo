@@ -1,0 +1,47 @@
+---
+// Base layout: <head>, sitewide WebSite + Person (author) JSON-LD, breadcrumbs slot.
+// Per-page @graph payloads (Book, Series, Hub, ...) are injected separately by the
+// page templates themselves via <JsonLd graph={...} /> — this layout only carries
+// the SITE-WIDE graph that belongs on every page.
+import JsonLd from '../components/JsonLd.astro';
+import { authorId } from '../lib/jsonld';
+import { siteConfig } from '../config';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description } = Astro.props as Props;
+
+const siteGraph = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': new URL('#website', Astro.site).toString(),
+      url: siteConfig.siteUrl,
+      name: title,
+      publisher: { '@id': authorId() },
+    },
+  ],
+};
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={Astro.url.toString()} />
+    <JsonLd graph={siteGraph} />
+  </head>
+  <body>
+    <nav aria-label="breadcrumbs">
+      <slot name="breadcrumbs" />
+    </nav>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>

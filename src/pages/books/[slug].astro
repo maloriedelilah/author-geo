@@ -1,0 +1,59 @@
+---
+// Book detail page. Builds the @graph (Author + Book, cross-linked by @id) via the
+// engine's jsonld.ts builder, sourced ONLY through the ContentSource seam (FileSource).
+import Base from '../../layouts/Base.astro';
+import JsonLd from '../../components/JsonLd.astro';
+import { FileSource } from '../../lib/sources/FileSource';
+import { authorNode, bookNode, graph } from '../../lib/jsonld';
+
+const source = new FileSource();
+
+export async function getStaticPaths() {
+  const src = new FileSource();
+  const books = await src.getBooks();
+  return books.map((book) => ({ params: { slug: book.slug } }));
+}
+
+const { slug } = Astro.params;
+const book = await source.getBook(slug as string);
+if (!book) throw new Error(`No book found for slug "${slug}"`);
+const author = await source.getAuthor();
+
+const pageGraph = graph([
+  authorNode(author),
+  bookNode(book, { seriesSlug: book.seriesSlug }),
+]);
+---
+<Base title={`${book.title} — ${author.name}`} description={book.description}>
+  <JsonLd graph={pageGraph} />
+  <article>
+    <h1>{book.title}</h1>
+    {book.subtitle && <p class="subtitle">{book.subtitle}</p>}
+    <img src={book.cover} alt={`Cover of ${book.title}`} />
+    <p>{book.description}</p>
+    <p>By <a href={author.url}>{author.name}</a></p>
+
+    <section aria-label="Editions">
+      <h2>Get the book</h2>
+      <ul>
+        {book.editions.map((e) => (
+          <li>
+            <a href={e.url}>{e.retailer} ({e.format})</a>
+            {e.price && <span> — {e.price} {e.currency}</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    {book.comps.length > 0 && (
+      <section aria-label="If you like...">
+        <h2>If you like...</h2>
+        <ul>
+          {book.comps.map((c) => (
+            <li><strong>{c.name}</strong>: {c.hook}</li>
+          ))}
+        </ul>
+      </section>
+    )}
+  </article>
+</Base>
