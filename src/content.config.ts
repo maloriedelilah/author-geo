@@ -1,0 +1,95 @@
+import { defineCollection, reference, z } from 'astro:content';
+import { glob } from 'astro/loaders';
+
+const edition = z.object({
+  format: z.enum(['ebook', 'paperback', 'hardcover', 'audiobook']),
+  isbn: z.string().optional(),
+  asin: z.string().optional(),
+  retailer: z.string(),          // e.g. 'Amazon', 'Kobo', 'Apple Books'
+  url: z.string().url(),          // buy link lives on the EDITION, not the work
+  price: z.string().optional(),
+  currency: z.string().default('USD'),
+});
+
+const comp = z.object({
+  name: z.string(),
+  // REQUIRED descriptive hook — never a bare name. Discipline borrowed from the
+  // Andromeda GEO comp skill, but note THIS is public answer-engine JSON-LD.
+  hook: z.string().min(20, 'Comps need a descriptive hook, not a bare name.'),
+  sameAs: z.array(z.string().url()).optional(), // Wikidata/Goodreads to disambiguate the real entity
+});
+
+const author = defineCollection({
+  loader: glob({ pattern: '**/*.{md,yaml}', base: './src/content/author' }),
+  schema: ({ image }) => z.object({
+    name: z.string(),
+    alternateName: z.array(z.string()).optional(),
+    bio: z.string(),
+    photo: image().optional(),
+    url: z.string().url(),
+    sameAs: z.array(z.string().url()).default([]), // socials, Wikidata, Goodreads author page
+    email: z.string().email().optional(),
+  }),
+});
+
+const books = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/books' }),
+  schema: ({ image }) => z.object({
+    title: z.string(),
+    subtitle: z.string().optional(),
+    slug: z.string(),
+    description: z.string().min(1),      // required — the blurb
+    cover: image(),                       // required — no book ships coverless
+    author: reference('author'),
+    series: reference('series').optional(),
+    seriesPosition: z.number().optional(),
+    datePublished: z.coerce.date(),
+    language: z.string().default('en'),
+    genres: z.array(z.string()).default([]),
+    editions: z.array(edition).min(1),   // required — at least one buy link
+    comps: z.array(comp).default([]),     // inline only; rendered on the book page
+  }),
+});
+
+const series = defineCollection({
+  loader: glob({ pattern: '**/*.{md,yaml}', base: './src/content/series' }),
+  schema: ({ image }) => z.object({
+    name: z.string(),
+    slug: z.string(),
+    description: z.string(),
+    cover: image().optional(),
+    author: reference('author'),
+    // book membership + order derived from books' series/seriesPosition (isPartOf/hasPart)
+    comps: z.array(comp).default([]),
+  }),
+});
+
+const hubs = defineCollection({
+  loader: glob({ pattern: '**/*.{md,yaml}', base: './src/content/hubs' }),
+  schema: () => z.object({
+    name: z.string(),                     // e.g. 'Human-AI Partnership'
+    slug: z.string(),
+    description: z.string(),
+    // DefinedTerm(s) this hub is ABOUT — becomes CollectionPage.about
+    about: z.array(z.object({ term: z.string(), sameAs: z.string().url().optional() })).min(1),
+    // ordered book membership -> mainEntity: ItemList of positioned entries
+    books: z.array(reference('books')).min(1),
+    comps: z.array(comp).default([]),
+  }),
+});
+
+const events = defineCollection({
+  loader: glob({ pattern: '**/*.{md,yaml}', base: './src/content/events' }),
+  schema: () => z.object({
+    name: z.string(),
+    slug: z.string(),
+    description: z.string(),
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date().optional(),
+    location: z.string().optional(),
+    url: z.string().url().optional(),
+    eventAttendanceMode: z.enum(['online', 'offline', 'mixed']).default('offline'),
+  }),
+});
+
+export const collections = { author, books, series, hubs, events };
