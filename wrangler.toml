@@ -1,0 +1,32 @@
+# Cloudflare config for the author-geo template.
+#
+# Tier 1 (this file, as committed): static site deployed to Cloudflare Pages.
+# `astro.config.mjs` has `output: 'static'`; Pages serves the built `dist/`
+# directory directly — no Worker runtime, no bindings needed.
+#
+# Tier 2 (commented below): flips to Cloudflare Workers + D1 when dynamic
+# routes (lead-capture, `output: 'server'` + `@astrojs/cloudflare` adapter)
+# come online. Uncomment the relevant blocks together with the Tier-2 switch
+# in `astro.config.mjs`.
+
+name = "author-geo"
+compatibility_date = "2026-07-21"
+
+# --- Tier 1: static Pages deploy ---
+pages_build_output_dir = "./dist"
+
+# --- Tier 2: Workers + D1 (commented out for Tier 1) ---
+# Uncomment when `astro.config.mjs` switches to `output: 'server'` +
+# `adapter: cloudflare()`, i.e. when lead-capture / dynamic routes land.
+#
+# main = "./dist/_worker.js/index.js"
+# compatibility_flags = ["nodejs_compat"]
+#
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "author-geo-db"
+# database_id = "REPLACE_WITH_D1_DATABASE_ID"
+#
+# [assets]
+# binding = "ASSETS"
+# directory = "./dist"
