@@ -1,10 +1,17 @@
 ---
-// Base layout: <head>, sitewide WebSite + Person (author) JSON-LD, breadcrumbs slot.
+// Base layout: <head>, sitewide WebSite JSON-LD, breadcrumbs slot.
 // Per-page @graph payloads (Book, Series, Hub, ...) are injected separately by the
 // page templates themselves via <JsonLd graph={...} /> — this layout only carries
 // the SITE-WIDE graph that belongs on every page.
+//
+// Identity spine (DD-001): WebSite.publisher must resolve on EVERY page, including
+// ones that supply no author of their own (home, series, themes, events, About
+// itself). So this layout reads the primary author from the ContentSource directly
+// — it does NOT depend on the page passing one in — and emits a NAMED STUB
+// (never a bare @id) pointing at the canonical Person node defined once on /about.
 import JsonLd from '../components/JsonLd.astro';
-import { authorId } from '../lib/jsonld';
+import { authorId, namedStub } from '../lib/jsonld';
+import { FileSource } from '../lib/sources/FileSource';
 import { siteConfig } from '../config';
 
 interface Props {
@@ -12,6 +19,16 @@ interface Props {
   description?: string;
 }
 const { title, description } = Astro.props as Props;
+
+const source = new FileSource();
+const authors = await source.getAuthors();
+// Tier-1 product decision: single-author template each student clones (co-author
+// arrays are supported end-to-end for when a book/series has one, but the SITE's
+// publisher is the primary/first author entry).
+const primaryAuthor = authors[0];
+if (!primaryAuthor) {
+  throw new Error('Base.astro: no author entry found in src/content/author — WebSite.publisher cannot be built');
+}
 
 const siteGraph = {
   '@context': 'https://schema.org',
@@ -21,7 +38,7 @@ const siteGraph = {
       '@id': new URL('#website', Astro.site).toString(),
       url: siteConfig.siteUrl,
       name: title,
-      publisher: { '@id': authorId() },
+      publisher: namedStub(authorId(primaryAuthor.slug), primaryAuthor.name),
     },
   ],
 };

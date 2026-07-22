@@ -1,4 +1,5 @@
 ---
+slug: "malorie"
 name: "Sera Voss"
 alternateName: ["S. Voss"]
 bio: "Sera Voss writes hard science fiction about humans, minds, and the long dark between stars. She lives in the mountains and codes as much as she writes."

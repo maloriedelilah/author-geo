@@ -7,6 +7,20 @@ import type {
   ContentSource, Author, Book, Series, Hub, EventItem,
 } from '../ContentSource';
 
+function mapAuthor(entry: Awaited<ReturnType<typeof getCollection<'author'>>>[number]): Author {
+  const d = entry.data;
+  return {
+    slug: d.slug,
+    name: d.name,
+    alternateName: d.alternateName,
+    bio: d.bio,
+    photo: d.photo ? (typeof d.photo === 'string' ? d.photo : d.photo.src) : undefined,
+    url: d.url,
+    sameAs: d.sameAs,
+    email: d.email,
+  };
+}
+
 async function mapBook(entry: Awaited<ReturnType<typeof getCollection<'books'>>>[number]): Promise<Book> {
   const d = entry.data;
   return {
@@ -20,26 +34,21 @@ async function mapBook(entry: Awaited<ReturnType<typeof getCollection<'books'>>>
     genres: d.genres,
     editions: d.editions,
     comps: d.comps,
+    authorSlugs: d.authors.map((a) => a.id),
     seriesSlug: d.series?.id,
     seriesPosition: d.seriesPosition,
   };
 }
 
 export class FileSource implements ContentSource {
-  async getAuthor(): Promise<Author> {
+  async getAuthors(): Promise<Author[]> {
     const entries = await getCollection('author');
-    const a = entries[0];
-    if (!a) throw new Error('FileSource: no author entry found in src/content/author');
-    const d = a.data;
-    return {
-      name: d.name,
-      alternateName: d.alternateName,
-      bio: d.bio,
-      photo: d.photo ? (typeof d.photo === 'string' ? d.photo : d.photo.src) : undefined,
-      url: d.url,
-      sameAs: d.sameAs,
-      email: d.email,
-    };
+    return entries.map(mapAuthor);
+  }
+
+  async getAuthorBySlug(slug: string): Promise<Author | undefined> {
+    const all = await this.getAuthors();
+    return all.find((a) => a.slug === slug);
   }
 
   async getBooks(): Promise<Book[]> {
@@ -61,6 +70,7 @@ export class FileSource implements ContentSource {
       description: e.data.description,
       cover: e.data.cover ? (typeof e.data.cover === 'string' ? e.data.cover : e.data.cover.src) : undefined,
       comps: e.data.comps,
+      authorSlugs: e.data.authors.map((a) => a.id),
     }));
   }
 

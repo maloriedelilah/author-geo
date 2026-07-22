@@ -1,10 +1,14 @@
 ---
-// Book detail page. Builds the @graph (Author + Book, cross-linked by @id) via the
-// engine's jsonld.ts builder, sourced ONLY through the ContentSource seam (FileSource).
+// Book detail page. Builds the @graph (Book, cross-linked by @id) via the engine's
+// jsonld.ts builder, sourced ONLY through the ContentSource seam (FileSource).
+//
+// DD-001 note: this page does NOT emit the full Person node anymore — that lives
+// exactly once on /about. It references each of the book's authors by @id + named
+// stub (bookNode's `authors` opt), co-author-safe via Book.authorSlugs.
 import Base from '../../layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import { FileSource } from '../../lib/sources/FileSource';
-import { authorNode, bookNode, graph } from '../../lib/jsonld';
+import { bookNode, graph } from '../../lib/jsonld';
 
 const source = new FileSource();
 
@@ -17,21 +21,29 @@ export async function getStaticPaths() {
 const { slug } = Astro.params;
 const book = await source.getBook(slug as string);
 if (!book) throw new Error(`No book found for slug "${slug}"`);
-const author = await source.getAuthor();
+
+const allAuthors = await source.getAuthors();
+const bookAuthors = allAuthors
+  .filter((a) => book.authorSlugs.includes(a.slug))
+  .map((a) => ({ slug: a.slug, name: a.name }));
+if (bookAuthors.length === 0) {
+  throw new Error(`Book "${book.slug}" has no resolvable author (authorSlugs: ${book.authorSlugs.join(', ')})`);
+}
 
 const pageGraph = graph([
-  authorNode(author),
-  bookNode(book, { seriesSlug: book.seriesSlug }),
+  bookNode(book, { seriesSlug: book.seriesSlug, authors: bookAuthors }),
 ]);
+
+const byline = bookAuthors.map((a) => a.name).join(', ');
 ---
-<Base title={`${book.title} — ${author.name}`} description={book.description}>
+<Base title={`${book.title} — ${byline}`} description={book.description}>
   <JsonLd graph={pageGraph} />
   <article>
     <h1>{book.title}</h1>
     {book.subtitle && <p class="subtitle">{book.subtitle}</p>}
     <img src={book.cover} alt={`Cover of ${book.title}`} />
     <p>{book.description}</p>
-    <p>By <a href={author.url}>{author.name}</a></p>
+    <p>By <a href="/about">{byline}</a></p>
 
     <section aria-label="Editions">
       <h2>Get the book</h2>
