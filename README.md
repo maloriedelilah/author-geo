@@ -1,29 +1,388 @@
 # author-geo
 
-A teaching-oriented starter for building an author website with first-class,
-machine-readable structured data (JSON-LD / schema.org) — so an author's books,
-series, and identity are legible to search engines and LLMs ("GEO": Generative
-Engine Optimization).
+**An author website that machines can read.** A clone-and-edit starter for a
+book-focused author site whose books, series, themes, and identity are emitted as
+first-class, validated **JSON-LD / schema.org** structured data — so search engines
+and LLMs can understand who you are and what you've written. ("GEO" =
+Generative Engine Optimization.)
 
-## Stack
+You bring the content (Markdown files describing your books and yourself); the
+engine turns it into a fast static site with correct, cross-linked structured data
+baked into every page.
 
-- **Astro 7** (pinned to `^7`) — static-first, content-collections driven
-- **Content Layer** — Zod-validated collections (Author, Book, Series, Hub, Comp, Event)
-- **JSON-LD** — a `@graph` builder emits validated schema.org structured data
-- **Deploy** — Cloudflare (Workers/Pages) via `@astrojs/cloudflare`
-- **Lead capture** — pluggable adapter (MailerLite / EmailOctopus)
+- **Tier 1 (this repo):** a pure static site, deployed to **Cloudflare Pages**.
+- **Tier 2 (deferred, seam in place):** a live newsletter signup endpoint. The
+  form ships now and goes live when Tier 2 lands — see [Tier 2](#tier-2--whats-deferred).
 
-## Structure (engine / content split)
+---
 
-- `src/` — the engine (layouts, components, JSON-LD builder, schemas). Pull upstream to update.
-- `src/content/` — the author's content (Markdown/data). Yours to edit; stays conflict-free on upstream pulls.
+## Table of contents
 
-## Getting started
+- [Quickstart](#quickstart)
+- [How it's organized](#how-its-organized-engine-vs-content)
+- [Adding your content](#adding-your-content) — the frontmatter contract
+- [Configuration](#configuration) — the three things you MUST set
+- [Validating your structured data](#validating-your-structured-data)
+- [Deploying to Cloudflare Pages](#deploying-to-cloudflare-pages)
+- [Tier 2 — what's deferred](#tier-2--whats-deferred)
+- [For developers / AI editors](#for-developers--ai-editors) — architecture & the contract
+- [The design decisions (DDs)](#the-design-decisions-that-govern-this-repo)
+
+---
+
+## Quickstart
 
 ```sh
 npm install
-npm run dev      # local dev server
-npm run build    # production build to dist/
+npm run dev      # local dev server at http://localhost:4321
+npm run build    # production build -> dist/
+npm run preview  # serve the built dist/ locally
 ```
 
 Requires **Node >= 22.12**.
+
+Out of the box the site builds with **example content** (a fictional author,
+three sample books, one series, one theme). Everything under `src/content/` is
+placeholder — delete it and drop in your own. See [Adding your content](#adding-your-content).
+
+---
+
+## How it's organized (engine vs. content)
+
+The repo is split into two zones on purpose:
+
+| Zone | Path | Who owns it |
+|------|------|-------------|
+| **Engine** | `src/` (layouts, components, `lib/`, page templates, schemas) | The template. Pull upstream to get fixes/features. |
+| **Content** | `src/content/` + `src/config.ts` | **You.** Your books, series, and identity. Stays conflict-free on upstream pulls. |
+
+The one rule: **edit your content and `src/config.ts`; leave the rest to the engine.**
+If you find yourself changing engine code to make content work, that's usually a
+sign a field belongs in the schema instead — see [For developers](#for-developers--ai-editors).
+
+---
+
+## Adding your content
+
+All content lives in `src/content/`, one folder per collection. Each file is
+Markdown with a YAML frontmatter block (the structured part) and optional body
+text below. **The frontmatter is validated by a Zod schema** (`src/content.config.ts`)
+— an invalid or missing field **fails the build with a clear error**, by design.
+That schema is the single source of truth; the tables below mirror it, but if the
+two ever disagree, **the schema wins**.
+
+> **Note for AI editors:** do not guess field names. Read `src/content.config.ts`,
+> match it exactly, and then run the [validation gate](#validating-your-structured-data).
+> A build can pass while emitting subtly wrong structured data (e.g. a canonical
+> URL on the wrong node) — the gate, not the build, is what proves correctness.
+
+### Author — `src/content/author/<slug>.md`
+
+Your identity. This is where the **canonical `Person` node** lives (at
+`{siteUrl}/about#<slug>`); every book references it by `@id`, never re-defining it.
+Co-authors each get their own file here.
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `slug` | ✅ | Drives the canonical `@id` (`{siteUrl}/about#<slug>`). Stable — don't change it casually. |
+| `name` | ✅ | Display / legal author name. |
+| `alternateName` | | Array of pen names / initials, e.g. `["S. Voss"]`. |
+| `bio` | ✅ | Prose bio; also feeds the About page and the (truncated) homepage blurb. |
+| `photo` | | Path to an image, e.g. `./sera.jpg`. Optional. |
+| `url` | ✅ | Your canonical author URL (usually your site root). |
+| `sameAs` | | Array of URLs that disambiguate you: Wikipedia/Wikidata, Goodreads author page, socials. Strongly recommended for GEO. |
+| `email` | | Optional contact email. |
+
+### Book — `src/content/books/<slug>.md` (or `<slug>/index.md` with a local cover)
+
+```yaml
+---
+title: "The Long Dark Between"
+subtitle: "A Novel of the Drift"        # optional
+slug: "the-long-dark-between"
+description: "When the last generation ship loses its ansible link..."  # the blurb — required
+cover: "./cover.png"                     # required — every book has a cover
+authors:                                 # ARRAY, min 1 — co-author-safe (DD-001)
+  - "malorie"                            #   each entry is an author SLUG (references src/content/author/)
+series: "the-cinder-cycle"               # optional — a series slug
+seriesPosition: 2                        # optional — order within the series
+datePublished: "2024-03-05"
+language: "en"                           # default: en
+genres: ["science fiction", "hard sci-fi"]
+editions:                                # ARRAY, min 1 — at least one buy link
+  - format: "ebook"                      #   ebook | paperback | hardcover | audiobook
+    retailer: "Amazon"
+    url: "https://.../buy/ebook"         #   the BUY LINK lives on the edition (-> schema Offer.url), NOT on the book (DD-005)
+    price: "4.99"                        #   optional
+    currency: "USD"                      #   default USD
+    isbn: "978..."                       #   optional
+    asin: "B0..."                        #   optional
+comps:                                   # optional — "comparable titles", rendered inline on the book page
+  - name: "The Expanse"
+    hook: "found-family crew under existential ship-systems pressure"  # REQUIRED, min 20 chars — never a bare name
+    sameAs: ["https://en.wikipedia.org/wiki/The_Expanse_novel_series"] # optional — disambiguates the real work
+---
+Optional long-form body copy about the book goes here.
+```
+
+Two rules the schema enforces that matter for structured data:
+- **`authors` is always an array** (min 1). A solo book is `["you"]`; a two-hander
+  is `["you", "coauthor"]`. This is DD-001 — the model is co-author-safe everywhere.
+- **`editions` is always an array** (min 1), and each edition's `url` is its
+  **buy link**. This becomes a schema.org `Offer.url`, *not* the Book's `url`.
+  The Book's own canonical `url` is its page on your site (the engine sets it). This
+  is DD-005 — a retailer link in `Book.url` would falsely claim the retailer as the
+  canonical home of the work.
+
+### Series — `src/content/series/<slug>.md`
+
+A named sequence of books. Membership is **derived from the books** (any book with
+`series: "<this-slug>"`), so you don't list books here — you tag them on the book.
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `name` | ✅ | Display name, e.g. "The Cinder Cycle". |
+| `slug` | ✅ | Used in the URL (`/series/<slug>`) and referenced by books. |
+| `description` | ✅ | |
+| `authors` | ✅ | Array of author slugs (min 1). |
+| `cover` | | Optional image. |
+| `comps` | | Same shape as book comps. |
+
+### Theme (hub) — `src/content/hubs/<slug>.md`
+
+A curated collection of books "about" a topic (a `CollectionPage` in schema.org).
+Route is `/themes/<slug>` (the collection folder is named `hubs`; the URL says
+`themes`).
+
+```yaml
+---
+name: "Human-AI Partnership"
+slug: "human-ai-partnership"
+description: "Books exploring what it means when minds depend on each other..."
+about:                                   # ARRAY, min 1 — the DefinedTerm(s) this hub is about
+  - term: "Artificial intelligence in fiction"
+    sameAs: "https://en.wikipedia.org/wiki/Artificial_intelligence_in_fiction"  # optional but recommended
+  - term: "Human–AI collaboration"
+books:                                   # ARRAY, min 1 — ORDERED list of book slugs (becomes an ItemList)
+  - "the-cinder-reach"
+  - "the-long-dark-between"
+---
+```
+
+Unlike a series (membership derived from books), a hub's `books` list is **explicit
+and ordered** — you're hand-curating a themed reading list.
+
+### Event — `src/content/events/<slug>.md`
+
+Appearances, launches, signings. All events render on `/events`.
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `name` | ✅ | |
+| `slug` | ✅ | |
+| `description` | ✅ | |
+| `startDate` | ✅ | ISO date/datetime. |
+| `endDate` | | Optional. |
+| `location` | | Free text (venue / city). |
+| `url` | | Event page / ticket link. |
+| `eventAttendanceMode` | | `online` \| `offline` \| `mixed` (default `offline`). |
+
+> The `events/` folder ships empty (just a `.gitkeep`). Add a file to populate `/events`.
+
+---
+
+## Configuration
+
+Three things you **must** set before deploying. The first is the classic
+silent-failure trap — the build passes with placeholders, but your structured data
+is wrong.
+
+### 1. Your site URL (set it in TWO places)
+
+Every canonical `@id` in the JSON-LD is built from your site URL. Left as
+`https://example.com`, the build **succeeds** but emits `@id`s on the placeholder
+domain — valid-looking, silently wrong. Set your real production URL in **both**:
+
+- **`astro.config.mjs`** → `site: 'https://yourdomain.com'`
+- **`src/config.ts`** → `siteConfig.siteUrl: 'https://yourdomain.com'`
+
+Keep them identical.
+
+### 2. Lead-capture provider — `src/config.ts`
+
+```ts
+leads: {
+  provider: 'mailerlite',   // 'mailerlite' | 'emailoctopus'
+  doubleOptIn: true,        // single vs. double opt-in
+  groups: [],               // provider list/group IDs
+}
+```
+
+This selects which adapter the newsletter form uses. The signup **endpoint** is
+Tier 2 (see below); the choice is wired now so it's ready.
+
+### 3. Secrets — `.env` (Tier 2)
+
+Copy `.env.example` to `.env` and fill in the block for your chosen provider
+(`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`). These
+are only consumed once Tier 2's endpoint is live. **Never commit real values** —
+set them as Cloudflare Pages secrets in production.
+
+---
+
+## Validating your structured data
+
+The build catches *schema* errors (a missing required field). It does **not**
+catch *structured-data* errors — a dangling reference, a canonical URL on the wrong
+node, an author `@id` that resolves nowhere. Those pass `astro build` silently and
+are exactly what breaks GEO.
+
+The enforcement is a **SHACL validation gate** (see the companion `schema-validator`
+setup). The workflow:
+
+1. `npm run build`
+2. For each built page in `dist/`, collect **all** `<script type="application/ld+json">`
+   blocks on that page and merge them (a crawler reads them together — the page's
+   `WebSite` node and its entity node live in separate blocks).
+3. POST the merged per-page graph to the validator.
+4. It must return **SUCCESS** with **zero dangling references** on every page type
+   (home, about, book, series, theme, events).
+
+The gate enforces the two rules that make this product work:
+- **DD-001:** every `author`/`publisher` reference resolves to a `Person` (a named
+  stub `{@type, @id, name}` is accepted — see the DDs).
+- **DD-005:** the primary Book carries its own canonical `url`; retailer links are
+  `Offer.url` on editions.
+
+> If you change engine code that touches JSON-LD, **the gate is your proof**, not
+> a green build. It is designed to fail loudly on the silent-failure classes above.
+
+---
+
+## Deploying to Cloudflare Pages
+
+Tier 1 is a **static** site (`output: 'static'`), so it deploys to Cloudflare
+Pages as plain built assets — no Worker runtime, no bindings.
+
+**Before you deploy:** set your real site URL in both places (see
+[Configuration](#configuration)).
+
+### Option A — Git integration (recommended for clone-and-edit)
+
+Cloudflare builds and deploys on every push.
+
+1. Push this repo to GitHub/GitLab.
+2. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** →
+   pick the repo.
+3. Build settings:
+   - **Framework preset:** Astro
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+   - **Node version:** set an env var `NODE_VERSION` = `22.12` (or newer) so the
+     build host matches the project's requirement.
+4. **Save and Deploy.** Cloudflare builds `dist/` and serves it. Every push to the
+   production branch redeploys; other branches get preview URLs.
+5. Add your custom domain under the project's **Custom domains** tab.
+
+`wrangler.toml` already declares `pages_build_output_dir = "./dist"` for this flow.
+
+### Option B — Direct upload with Wrangler (manual / CI)
+
+```sh
+npm install -g wrangler      # or npx wrangler
+npm run build
+wrangler pages deploy dist   # first run prompts to create/select the Pages project
+```
+
+Use this for local one-off deploys or a custom CI pipeline.
+
+---
+
+## Tier 2 — what's deferred
+
+The newsletter **form** (`SubscribeForm`) ships in Tier 1 and posts to
+`/api/subscribe`. That **endpoint** is intentionally deferred: it's a server route
+(`prerender = false`, imports `cloudflare:workers`) and requires SSR, which Tier 1's
+static build deliberately doesn't enable. Until Tier 2 lands, the form is inert.
+
+To bring it online (Tier 2):
+1. In `astro.config.mjs`, switch to `output: 'server'` + `adapter: cloudflare()`
+   (the commented block is right there).
+2. In `wrangler.toml`, uncomment the Workers/D1 block.
+3. Add `src/pages/api/subscribe.ts` (the lead-capture adapters under
+   `src/lib/leads/` are already present).
+4. Set the provider secrets as Cloudflare Pages/Workers secrets.
+
+At that point Tier 1 stops being a pure static deploy and becomes an SSR/hybrid
+Cloudflare deploy — which is why it's a deliberate tier boundary, not a default.
+
+---
+
+## For developers / AI editors
+
+The engine is small and layered. If you're modifying the code (or you're an AI
+asked to), this is the map — and the contract you must not break.
+
+```
+src/
+  content.config.ts     # THE CONTRACT: Zod schemas for every collection. Source of truth.
+  config.ts             # author-editable behavior (site URL, leads provider)
+  lib/
+    ContentSource.ts     # the seam: the interface templates + JSON-LD depend on
+    sources/FileSource.ts# reads content collections -> ContentSource (co-author aware)
+    jsonld.ts            # THE ENGINE: builds the schema.org @graph (nodes + named stubs)
+    leads/               # MailerLite / EmailOctopus adapters (Tier 2)
+  layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub)
+  components/            # JsonLd, SubscribeForm, CompsBlock
+  pages/                 # route templates: index, about, books/[slug], series/[slug],
+                         #   themes/[slug], events/index
+```
+
+**The rules that make the structured data correct** (violating them is a silent
+failure the build won't catch — run the gate):
+
+1. **One canonical definition, referenced everywhere else (DD-001).** Each entity
+   (a `Person`, a `Book`) is fully defined **once**, at its canonical `@id`. Every
+   other reference to it is a **named stub** — `{@type, @id, name}` — never a bare
+   `@id` (which dangles for consumers that don't chase `@id`), and never a second
+   full definition (which creates two competing authorities). The canonical `Person`
+   lives on `/about`; the homepage shows the author blurb as **display text only** and
+   emits no second Person node.
+
+2. **Authors are always an array** (co-author-safe), everywhere — schema, seam,
+   and emission.
+
+3. **Canonical URL discipline (DD-005).** A Book's `url` is its page on this site.
+   Retailer buy-links are `Offer.url` on editions, never `Book.url`.
+
+4. **`site` is load-bearing.** `jsonld.ts` builds every absolute `@id` from
+   `import.meta.env.SITE`. A wrong/placeholder `site` produces wrong `@id`s that
+   pass the build.
+
+5. **Prove changes with the gate, not the build.** Merge all `ld+json` blocks per
+   page and validate; require SUCCESS + zero dangling refs across every page type.
+
+**When you pull upstream:** engine changes land in `src/` (outside `src/content/`);
+your content stays untouched. If an upstream schema change requires a content
+migration, it'll be called out — re-run the gate after migrating.
+
+---
+
+## The design decisions that govern this repo
+
+The authoritative design decisions (DD-001 … DD-005) are recorded in the project's
+documentation. Two you'll meet immediately:
+
+- **DD-001 — Identity model.** Canonical `Person` at `/about#<slug>`; reference by
+  `@id` + **named stub** everywhere else; authors are arrays (co-author-safe).
+- **DD-005 — Editions & offers.** Primary Book owns the single on-site canonical
+  `url`; editions carry `bookFormat`/`isbn` and `offers`, with the retailer link as
+  `Offer.url`.
+
+Where a DD and any older doc/scaffold disagree, **the DD wins.**
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
