@@ -93,4 +93,19 @@ const events = defineCollection({
   }),
 });
 
-export const collections = { author, books, series, hubs, events };
+// Site-chrome legal pages (Privacy Policy, Terms of Use). These carry no
+// schema.org identity of their own (no JSON-LD emitted) — they're plain
+// long-form content, validated the same way as everything else (Zod) so a
+// missing `updated` date fails the build loudly rather than shipping silently
+// stale. `slug` must be 'privacy' or 'terms' — those are the only two routes
+// that read this collection (src/pages/privacy.astro, src/pages/terms.astro).
+const legal = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/legal' }),
+  schema: () => z.object({
+    title: z.string(),
+    slug: z.enum(['privacy', 'terms']),
+    updated: z.coerce.date(),
+  }),
+});
+
+export const collections = { author, books, series, hubs, events, legal };

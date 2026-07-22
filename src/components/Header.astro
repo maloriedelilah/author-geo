@@ -1,0 +1,23 @@
+---
+// Site header: wordmark (primary author's name, linking home) + nav from
+// siteConfig.nav. Pure chrome — emits no JSON-LD of its own (that's Base.astro's
+// job for the WebSite node); this is presentation only.
+import { siteConfig } from '../config';
+
+interface Props {
+  authorName: string;
+}
+const { authorName } = Astro.props as Props;
+---
+<header class="site-header">
+  <div class="wrap">
+    <a class="wordmark" href="/">{authorName}</a>
+    {siteConfig.nav.length > 0 && (
+      <nav class="site-nav" aria-label="Primary">
+        {siteConfig.nav.map((item) => (
+          <a href={item.href}>{item.label}</a>
+        ))}
+      </nav>
+    )}
+  </div>
+</header>

@@ -1,0 +1,37 @@
+---
+// Series index — landing page for the "Series" nav item. Lists every series
+// with its member books, same derivation logic as the homepage's series
+// section. Emits NO JSON-LD of its own (each series' full BookSeries node
+// lives once on its own /series/<slug> page — DD-001); this is a plain
+// listing/navigation page.
+import Base from '../../layouts/Base.astro';
+import { FileSource } from '../../lib/sources/FileSource';
+
+const source = new FileSource();
+const [seriesList, books] = await Promise.all([
+  source.getSeries(),
+  source.getBooks(),
+]);
+
+const seriesWithBooks = seriesList.map((s) => ({
+  series: s,
+  books: books
+    .filter((b) => b.seriesSlug === s.slug)
+    .sort((a, b) => (a.seriesPosition ?? 0) - (b.seriesPosition ?? 0)),
+}));
+---
+<Base title="Series" description="All series">
+  <h1>Series</h1>
+  {seriesWithBooks.length === 0 && <p>No series yet.</p>}
+  {seriesWithBooks.map(({ series, books: memberBooks }) => (
+    <section class="card" aria-labelledby={`series-${series.slug}`}>
+      <h2 id={`series-${series.slug}`}><a href={`/series/${series.slug}`}>{series.name}</a></h2>
+      <p>{series.description}</p>
+      <ul>
+        {memberBooks.map((b) => (
+          <li><a href={`/books/${b.slug}`}>{b.title}</a></li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</Base>

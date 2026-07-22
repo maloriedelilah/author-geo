@@ -11,8 +11,9 @@ engine turns it into a fast static site with correct, cross-linked structured da
 baked into every page.
 
 - **Tier 1 (this repo):** a pure static site, deployed to **Cloudflare Pages**.
-- **Tier 2 (deferred, seam in place):** a live newsletter signup endpoint. The
-  form ships now and goes live when Tier 2 lands — see [Tier 2](#tier-2--whats-deferred).
+- **Tier 2 (deferred, seam in place):** live server endpoints for the newsletter
+  signup and contact forms. Both forms ship now and go live when Tier 2 lands —
+  see [Tier 2](#tier-2--whats-deferred).
 
 > **Editing this site with an AI agent?** Point it at **[`SKILL.md`](./SKILL.md)** —
 > a self-contained authoring procedure (the content contract, the per-type recipes,
@@ -26,7 +27,9 @@ baked into every page.
 - [Quickstart](#quickstart)
 - [How it's organized](#how-its-organized-engine-vs-content)
 - [Adding your content](#adding-your-content) — the frontmatter contract
-- [Configuration](#configuration) — the three things you MUST set
+- [Configuration](#configuration) — site URL, leads, theme/nav/footer
+- [Legal pages](#legal-pages-privacy--terms) — Privacy Policy & Terms of Use
+- [Contact form](#contact-form) — the static form + how to wire it to actually send email
 - [Validating your structured data](#validating-your-structured-data)
 - [Deploying to Cloudflare Pages](#deploying-to-cloudflare-pages)
 - [Tier 2 — what's deferred](#tier-2--whats-deferred)
@@ -198,7 +201,7 @@ Appearances, launches, signings. All events render on `/events`.
 
 ## Configuration
 
-Three things you **must** set before deploying. The first is the classic
+A few things worth setting before deploying. The first is the classic
 silent-failure trap — the build passes with placeholders, but your structured data
 is wrong.
 
@@ -226,12 +229,113 @@ leads: {
 This selects which adapter the newsletter form uses. The signup **endpoint** is
 Tier 2 (see below); the choice is wired now so it's ready.
 
-### 3. Secrets — `.env` (Tier 2)
+### 3. Site chrome — theme, nav, footer (`src/config.ts`)
+
+Also in `src/config.ts`, alongside `siteUrl` and `leads`:
+
+```ts
+theme: {
+  mode: 'dark',        // 'dark' | 'light' — the two built-in palettes
+  accent: undefined,   // e.g. '#ffb454' — override just the accent color, optional
+},
+nav: [
+  { label: 'Series', href: '/series' },
+  { label: 'About', href: '/about' },
+  // add { label: 'Contact', href: '/contact' } once you have a contact page
+],
+footer: {
+  tagline: undefined,  // optional one-line blurb under the footer links
+  links: [],           // extra footer links beyond the built-in Privacy/Terms
+},
+```
+
+This is an **author-time** choice, not a visitor-facing toggle — if you're an AI
+building this site for an author, ask them light or dark, set `theme.mode`, and
+optionally tweak `theme.accent` to taste. No CSS editing required. The palettes
+themselves live in `src/styles/theme.css` as CSS custom properties, if you do
+want to go further (e.g. add a third palette).
+
+`/privacy` and `/terms` are built in and always linked from the footer — see
+[Legal pages](#legal-pages-privacy--terms) below to edit their text.
+
+### 4. Secrets — `.env` (Tier 2)
 
 Copy `.env.example` to `.env` and fill in the block for your chosen provider
 (`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`). These
 are only consumed once Tier 2's endpoint is live. **Never commit real values** —
 set them as Cloudflare Pages secrets in production.
+
+---
+
+## Legal pages (Privacy & Terms)
+
+`/privacy` and `/terms` ship built in, sourced from a `legal` content collection
+(`src/content/legal/privacy.md`, `src/content/legal/terms.md`) — edit them like
+any other content, no engine changes needed. They're plain long-form pages: no
+JSON-LD is emitted for them (they aren't a schema.org entity), and their frontmatter
+contract is just `title`, `slug` (`'privacy'` or `'terms'` — fixed, one file each),
+and `updated` (a date, so a stale unreviewed policy is visible, not silent).
+
+**Both ship with generic, GDPR-aware starter text and an explicit banner saying
+so.** They are not legal advice and have not been reviewed by a lawyer — have them
+reviewed for your jurisdiction and actual data practices (what your lead-capture
+provider collects, your hosting provider, any analytics you add later) before
+relying on them. Update the `updated` frontmatter date whenever you revise the text.
+
+Both pages are always linked from the site footer automatically — nothing else to wire up.
+
+---
+
+## Contact form
+
+`/contact` ships now (Tier 1) as a static page with a real form — see
+`src/components/ContactForm.astro`. It does **not** send email yet: the form
+POSTs to `/api/contact`, which doesn't exist until you wire Tier 2, same
+deferred status as `/api/subscribe` (see [Configuration](#configuration)
+above and [Tier 2](#tier-2--whats-deferred) below).
+
+**Why there's no `mailto:` link or visible email address anywhere on the
+page:** any address in the page source gets scraped by spam bots within days.
+The whole design point of routing this through a server-side endpoint is that
+the destination inbox is a **secret**, never rendered to the browser and never
+committed to the repo.
+
+**Cloudflare's actual answer to "can a static Pages site email a form
+submission":** yes, via a Cloudflare Pages Function (a small Worker that runs
+at `/api/*` once you flip to Tier 2's server output). Cloudflare doesn't send
+mail itself, so the Function calls a transactional email API. Concretely:
+
+1. **Flip to Tier 2** — `output: 'server'` + the Cloudflare adapter in
+   `astro.config.mjs` (see [Tier 2](#tier-2--whats-deferred)).
+2. **Write `src/pages/api/contact.ts`** as a Pages Function: read the form
+   POST, reject silently if the honeypot (`company`) field is filled, then
+   call an email API with the message and the visitor's supplied name/email
+   as the reply-to.
+3. **Pick an email API and verify a sending domain** — MailChannels' free
+   integration for Workers/Pages **ended June 2024**; don't follow older
+   tutorials that assume it's still free. The currently-supported paths
+   Cloudflare's own docs point to are **Resend** or **Postmark**. Resend is
+   the simpler onboarding (free tier, DKIM/DMARC setup via a few DNS records
+   on your existing Cloudflare-managed domain) and has a published DPA/SCCs
+   for GDPR — reasonable for a starter template, though its account
+   metadata/logs are US-stored even if you send from an EU region. If full EU
+   data residency matters for your author's situation, that's worth a look
+   before committing.
+4. **Set secrets, don't commit them** — `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`
+   (a verified sender on your domain), `CONTACT_TO_EMAIL` (the real inbox —
+   this is the value that must never appear in `config.ts` or any page). Set
+   these as Cloudflare Pages **secrets** in the dashboard (or `wrangler pages
+   secret put`), and locally in `.env` (see `.env.example`) — never commit
+   real values.
+5. **Add spam gating beyond the honeypot** once this is a live endpoint —
+   Cloudflare Turnstile is the natural pairing (free, no CAPTCHA puzzle for
+   real users, verified server-side in the same Function before you call the
+   email API). `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` placeholders are
+   already in `.env.example` for when you add it.
+
+None of the above is required for Tier 1 — the page and form render and
+validate fine without it. It's only needed once you actually want submissions
+to reach an inbox.
 
 ---
 
@@ -305,18 +409,24 @@ Use this for local one-off deploys or a custom CI pipeline.
 
 ## Tier 2 — what's deferred
 
-The newsletter **form** (`SubscribeForm`) ships in Tier 1 and posts to
-`/api/subscribe`. That **endpoint** is intentionally deferred: it's a server route
-(`prerender = false`, imports `cloudflare:workers`) and requires SSR, which Tier 1's
-static build deliberately doesn't enable. Until Tier 2 lands, the form is inert.
+Two **forms** ship in Tier 1 as static markup and POST to endpoints that don't
+exist yet: the newsletter form (`SubscribeForm` → `/api/subscribe`) and the
+contact form (`ContactForm` → `/api/contact`, see [Contact form](#contact-form)
+for the fuller Cloudflare-specific writeup). Both **endpoints** are intentionally
+deferred: they're server routes (`prerender = false`; subscribe additionally
+imports `cloudflare:workers`) and require SSR, which Tier 1's static build
+deliberately doesn't enable. Until Tier 2 lands, both forms are inert.
 
-To bring it online (Tier 2):
+To bring them online (Tier 2):
 1. In `astro.config.mjs`, switch to `output: 'server'` + `adapter: cloudflare()`
    (the commented block is right there).
 2. In `wrangler.toml`, uncomment the Workers/D1 block.
 3. Add `src/pages/api/subscribe.ts` (the lead-capture adapters under
-   `src/lib/leads/` are already present).
-4. Set the provider secrets as Cloudflare Pages/Workers secrets.
+   `src/lib/leads/` are already present) and `src/pages/api/contact.ts` (a
+   Pages Function calling Resend/Postmark — see [Contact form](#contact-form)).
+4. Set the provider secrets as Cloudflare Pages/Workers secrets — for the
+   contact form specifically: `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`,
+   `CONTACT_TO_EMAIL`, and optionally `TURNSTILE_SECRET_KEY`.
 
 At that point Tier 1 stops being a pure static deploy and becomes an SSR/hybrid
 Cloudflare deploy — which is why it's a deliberate tier boundary, not a default.
@@ -331,16 +441,20 @@ asked to), this is the map — and the contract you must not break.
 ```
 src/
   content.config.ts     # THE CONTRACT: Zod schemas for every collection. Source of truth.
-  config.ts             # author-editable behavior (site URL, leads provider)
+  config.ts             # author-editable behavior (site URL, leads provider, theme/nav/footer)
+  styles/theme.css       # the two built-in palettes (CSS custom properties) + base layout/type
   lib/
     ContentSource.ts     # the seam: the interface templates + JSON-LD depend on
     sources/FileSource.ts# reads content collections -> ContentSource (co-author aware)
     jsonld.ts            # THE ENGINE: builds the schema.org @graph (nodes + named stubs)
     leads/               # MailerLite / EmailOctopus adapters (Tier 2)
-  layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub)
-  components/            # JsonLd, SubscribeForm, CompsBlock
+  layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub); wraps
+                         #   every page in Header/Footer and applies theme.mode/accent
+  components/            # JsonLd, SubscribeForm, ContactForm, CompsBlock, Header, Footer
   pages/                 # route templates: index, about, books/[slug], series/[slug],
-                         #   themes/[slug], events/index
+                         #   series/index (nav landing page), themes/[slug], events/index,
+                         #   privacy, terms (legal collection, no JSON-LD), contact (static
+                         #   form shell, no JSON-LD; /api/contact is Tier 2, not yet written)
 ```
 
 **The rules that make the structured data correct** (violating them is a silent

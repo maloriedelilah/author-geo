@@ -1,0 +1,85 @@
+---
+// Contact form. POSTs to /api/contact (Tier 2 — see README "Contact form"
+// section; the endpoint doesn't exist yet, same deferred status as
+// SubscribeForm's /api/subscribe). Mirrors SubscribeForm's shape on purpose:
+// progressive-enhancement friendly (plain <form method="post"> works with zero
+// JS), honeypot anti-spam field, inline AJAX status message as enhancement.
+//
+// Deliberately does NOT render the author's real email address anywhere in
+// the markup — the destination inbox is a Cloudflare secret consumed by the
+// Tier-2 endpoint only, never committed to the repo or shipped to the browser.
+// This is the point: nothing here is scrapeable by spam harvesters.
+interface Props {
+  title?: string;
+  description?: string;
+}
+const { title = 'Contact', description } = Astro.props as Props;
+---
+<form class="contact-form" method="post" action="/api/contact">
+  <h2>{title}</h2>
+  {description && <p>{description}</p>}
+
+  <p class="contact-form__hp" aria-hidden="true">
+    <label>
+      Company
+      <input type="text" name="company" tabindex="-1" autocomplete="off" />
+    </label>
+  </p>
+
+  <label>
+    Name
+    <input type="text" name="name" required autocomplete="name" />
+  </label>
+
+  <label>
+    Email
+    <input type="email" name="email" required autocomplete="email" />
+  </label>
+
+  <label>
+    Message
+    <textarea name="message" required rows="6"></textarea>
+  </label>
+
+  <button type="submit">Send</button>
+
+  <p class="contact-form__status" role="status" hidden></p>
+</form>
+
+<style>
+  .contact-form__hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+</style>
+
+<script>
+  // Progressive enhancement only — see the frontmatter comment above. If this
+  // script never runs (JS disabled/blocked), the <form> above still submits.
+  document.querySelectorAll<HTMLFormElement>('form.contact-form').forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const status = form.querySelector<HTMLElement>('.contact-form__status');
+      const setStatus = (msg: string) => {
+        if (!status) return;
+        status.hidden = false;
+        status.textContent = msg;
+      };
+      try {
+        const res = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) {
+          form.reset();
+          setStatus("Thanks — message sent!");
+        } else {
+          setStatus('Something went wrong — please try again.');
+        }
+      } catch {
+        setStatus('Something went wrong — please try again.');
+      }
+    });
+  });
+</script>

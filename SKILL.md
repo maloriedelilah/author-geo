@@ -114,6 +114,14 @@ Required: `name`, `slug`, `description`, `startDate`. Optional: `endDate`,
 `location`, `url`, `eventAttendanceMode` (`online`/`offline`/`mixed`, default
 `offline`). All events render on the single `/events` listing page.
 
+### Site chrome: theme / nav / footer / legal pages — NOT part of this loop
+`src/config.ts` (theme mode/accent, nav links, footer text) and the `legal`
+collection (`src/content/legal/privacy.md`, `terms.md`) are presentational —
+they carry no schema.org identity and emit no JSON-LD, so they're outside the
+five rules above and outside the validation gate's scope. Edit them freely;
+`npm run build` (Zod) is the only check that applies. See `README.md` §
+Configuration and § Legal pages.
+
 ---
 
 ## Validation gate
