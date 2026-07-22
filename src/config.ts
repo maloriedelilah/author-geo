@@ -25,10 +25,14 @@ export const siteConfig = {
 
   // --- Header nav --------------------------------------------------------
   // Rendered left-to-right in the header, after the site wordmark (the primary
-  // author's name, linking to /). Add a Contact entry once a /contact page exists.
+  // author's name, linking to /). /contact ships as a static form (Tier 1);
+  // it doesn't actually deliver mail until the /api/contact endpoint is wired
+  // in Tier 2 — see README "Contact form". Remove this nav entry if you'd
+  // rather hide the page until that's live.
   nav: [
     { label: 'Series', href: '/series' },
     { label: 'About', href: '/about' },
+    { label: 'Contact', href: '/contact' },
   ] as NavItem[],
 
   // --- Footer --------------------------------------------------------------
