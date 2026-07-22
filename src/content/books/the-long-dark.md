@@ -4,7 +4,8 @@ subtitle: "A Novel of the Drift"
 slug: "the-long-dark-between"
 description: "When the last generation ship loses its ansible link to Earth, engineer Kade Ilyin must decide whether the truth is worth the mutiny it will start. A hard-SF thriller about isolation, trust, and the machines that keep us alive between the stars."
 cover: "./cover.png"
-author: "malorie"
+authors:
+  - "malorie"
 datePublished: "2024-03-05"
 language: "en"
 genres:

@@ -1,0 +1,35 @@
+---
+// The canonical Person home (DD-001). Every author/co-author's FULL Person node is
+// emitted HERE, exactly once, at @id = "{site}/about#<slug>". Every other page
+// (Base's WebSite.publisher, Book.author, Series.author, ...) references these same
+// @ids via a minimal named stub instead of re-emitting or bare-@id-referencing them.
+import Base from '../layouts/Base.astro';
+import JsonLd from '../components/JsonLd.astro';
+import { FileSource } from '../lib/sources/FileSource';
+import { authorNode, graph } from '../lib/jsonld';
+
+const source = new FileSource();
+const authors = await source.getAuthors();
+
+const pageGraph = graph(authors.map((a) => authorNode(a)));
+---
+<Base title="About" description={authors[0]?.bio}>
+  <JsonLd graph={pageGraph} />
+  <article>
+    <h1>About</h1>
+    {authors.map((a) => (
+      <section aria-labelledby={`author-${a.slug}`}>
+        <h2 id={`author-${a.slug}`}>{a.name}</h2>
+        {a.photo && <img src={a.photo} alt={a.name} />}
+        <p>{a.bio}</p>
+        {a.sameAs.length > 0 && (
+          <ul>
+            {a.sameAs.map((url) => (
+              <li><a href={url}>{url}</a></li>
+            ))}
+          </ul>
+        )}
+      </section>
+    ))}
+  </article>
+</Base>

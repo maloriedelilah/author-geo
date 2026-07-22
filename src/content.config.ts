@@ -22,6 +22,7 @@ const comp = z.object({
 const author = defineCollection({
   loader: glob({ pattern: '**/*.{md,yaml}', base: './src/content/author' }),
   schema: ({ image }) => z.object({
+    slug: z.string(), // drives the canonical @id ({site}/about#slug) — DD-001
     name: z.string(),
     alternateName: z.array(z.string()).optional(),
     bio: z.string(),
@@ -40,7 +41,7 @@ const books = defineCollection({
     slug: z.string(),
     description: z.string().min(1),      // required — the blurb
     cover: image(),                       // required — no book ships coverless
-    author: reference('author'),
+    authors: z.array(reference('author')).min(1), // co-author-safe — DD-001
     series: reference('series').optional(),
     seriesPosition: z.number().optional(),
     datePublished: z.coerce.date(),
@@ -58,7 +59,7 @@ const series = defineCollection({
     slug: z.string(),
     description: z.string(),
     cover: image().optional(),
-    author: reference('author'),
+    authors: z.array(reference('author')).min(1), // co-author-safe — DD-001
     // book membership + order derived from books' series/seriesPosition (isPartOf/hasPart)
     comps: z.array(comp).default([]),
   }),
