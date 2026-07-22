@@ -33,7 +33,7 @@ export function authorNode(a: Author) {
 
 export function bookNode(
   b: Book,
-  opts: { seriesSlug?: string; authors: { slug: string; name: string }[] },
+  opts: { series?: { slug: string; name: string }; authors: { slug: string; name: string }[] },
 ) {
   return { '@type': 'Book', '@id': bookId(b.slug), name: b.title,
     // DD-005/#3: the primary Book owns the single on-site CANONICAL url (its own
@@ -46,7 +46,10 @@ export function bookNode(
     description: b.description,
     inLanguage: b.language, datePublished: b.datePublished.toISOString().slice(0, 10),
     genre: b.genres, image: b.cover,
-    ...(opts.seriesSlug ? { isPartOf: { '@id': seriesId(opts.seriesSlug) },
+    // isPartOf references the series by a NAMED STUB (@type+@id+name), not a bare
+    // @id — DD-001: must resolve standalone on the book page (the full BookSeries
+    // node lives once on its own /series/<slug> page).
+    ...(opts.series ? { isPartOf: namedStub(seriesId(opts.series.slug), opts.series.name, 'BookSeries'),
          position: b.seriesPosition } : {}),
     workExample: b.editions.map((e) => ({ '@type': 'Book', bookFormat: e.format,
       isbn: e.isbn, potentialAction: undefined,
@@ -67,12 +70,15 @@ export function seriesNode(
 
 // Hub = CollectionPage.about[DefinedTerm] + mainEntity: ItemList of positioned books.
 // Confirmed from live aeon14.com/themes pattern.
-export function hubGraph(h: Hub, memberIds: string[]) {
+// members carry {id, name} so each ItemList entry emits a NAMED STUB (@type+@id+
+// name), never a bare @id — DD-001: the reference must resolve standalone on this
+// page (the full Book node lives once on its own /books/<slug> page).
+export function hubGraph(h: Hub, members: { id: string; name: string }[]) {
   return { '@type': 'CollectionPage', name: h.name, description: h.description,
     about: h.about.map((t) => ({ '@type': 'DefinedTerm', name: t.term, sameAs: t.sameAs })),
-    mainEntity: { '@type': 'ItemList', numberOfItems: memberIds.length,
-      itemListElement: memberIds.map((id, i) => ({ '@type': 'ListItem',
-        position: i + 1, item: { '@id': id } })) } };
+    mainEntity: { '@type': 'ItemList', numberOfItems: members.length,
+      itemListElement: members.map((m, i) => ({ '@type': 'ListItem',
+        position: i + 1, item: namedStub(m.id, m.name, 'Book') })) } };
 }
 
 // Events currently have no standalone per-event page (Tier-1 scope: one listing
