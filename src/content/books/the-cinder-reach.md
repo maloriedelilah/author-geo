@@ -5,6 +5,8 @@ description: "Salvage captain Wren Talia strips dead ships for a living—until 
 cover: "./the-cinder-reach-cover.png"
 authors:
   - "malorie"
+series: "the-cinder-cycle"
+seriesPosition: 1
 datePublished: "2023-11-14"
 language: "en"
 genres:

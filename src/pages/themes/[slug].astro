@@ -24,11 +24,11 @@ const allBooks = await source.getBooks();
 const memberBooks = hub.bookSlugs
   .map((s) => allBooks.find((b) => b.slug === s))
   .filter((b): b is NonNullable<typeof b> => Boolean(b));
-const memberIds = memberBooks.map((b) => bookId(b.slug));
+// Pass {id, name} so hubGraph emits a NAMED STUB per member (DD-001) — a bare
+// @id here would dangle on a standalone fetch of just this page's JSON-LD.
+const members = memberBooks.map((b) => ({ id: bookId(b.slug), name: b.title }));
 
-// hubGraph() is the engine's existing CollectionPage/ItemList builder — used
-// as-is (no changes to jsonld.ts beyond the new eventNode addition elsewhere).
-const pageGraph = graph([hubGraph(hub, memberIds)]);
+const pageGraph = graph([hubGraph(hub, members)]);
 ---
 <Base title={hub.name} description={hub.description}>
   <JsonLd graph={pageGraph} />

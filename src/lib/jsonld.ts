@@ -67,12 +67,15 @@ export function seriesNode(
 
 // Hub = CollectionPage.about[DefinedTerm] + mainEntity: ItemList of positioned books.
 // Confirmed from live aeon14.com/themes pattern.
-export function hubGraph(h: Hub, memberIds: string[]) {
+// members carry {id, name} so each ItemList entry emits a NAMED STUB (@type+@id+
+// name), never a bare @id — DD-001: the reference must resolve standalone on this
+// page (the full Book node lives once on its own /books/<slug> page).
+export function hubGraph(h: Hub, members: { id: string; name: string }[]) {
   return { '@type': 'CollectionPage', name: h.name, description: h.description,
     about: h.about.map((t) => ({ '@type': 'DefinedTerm', name: t.term, sameAs: t.sameAs })),
-    mainEntity: { '@type': 'ItemList', numberOfItems: memberIds.length,
-      itemListElement: memberIds.map((id, i) => ({ '@type': 'ListItem',
-        position: i + 1, item: { '@id': id } })) } };
+    mainEntity: { '@type': 'ItemList', numberOfItems: members.length,
+      itemListElement: members.map((m, i) => ({ '@type': 'ListItem',
+        position: i + 1, item: namedStub(m.id, m.name, 'Book') })) } };
 }
 
 // Events currently have no standalone per-event page (Tier-1 scope: one listing

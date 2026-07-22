@@ -6,6 +6,8 @@ description: "When the last generation ship loses its ansible link to Earth, eng
 cover: "./cover.png"
 authors:
   - "malorie"
+series: "the-cinder-cycle"
+seriesPosition: 2
 datePublished: "2024-03-05"
 language: "en"
 genres:
