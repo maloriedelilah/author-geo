@@ -4,7 +4,8 @@ subtitle: "A Standalone Novel"
 slug: "signal-and-ash"
 description: "When a derelict relay station starts broadcasting a signal older than the colony itself, xenolinguist Priya Anand must decide whether decoding it will save her outpost or doom it. A standalone hard-SF mystery about first contact, colonial guilt, and the cost of understanding something not meant for human ears."
 cover: "./cover.png"
-author: "malorie"
+authors:
+  - "malorie"
 datePublished: "2025-09-16"
 language: "en"
 genres:

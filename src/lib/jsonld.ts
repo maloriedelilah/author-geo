@@ -6,7 +6,7 @@
 // referenced by that @id PLUS a minimal named stub (namedStub) — never a bare @id
 // (which dangles the moment the referencing page doesn't also happen to supply the
 // full node) and never a re-inlined full node (which would duplicate + drift).
-import type { Author, Book, Series, Hub } from './ContentSource';
+import type { Author, Book, Series, Hub, EventItem } from './ContentSource';
 
 const SITE = (path = '') => new URL(path, import.meta.env.SITE).toString();
 // Per-author, About-anchored — the About page is the canonical Person home (DD-001).
@@ -73,6 +73,30 @@ export function hubGraph(h: Hub, memberIds: string[]) {
     mainEntity: { '@type': 'ItemList', numberOfItems: memberIds.length,
       itemListElement: memberIds.map((id, i) => ({ '@type': 'ListItem',
         position: i + 1, item: { '@id': id } })) } };
+}
+
+// Events currently have no standalone per-event page (Tier-1 scope: one listing
+// page at /events), so each Event's canonical @id is anchored to that listing
+// page rather than its own route — same "one canonical home" discipline as the
+// other builders (DD-001), just with a shared home instead of a per-entity one.
+export const eventId = (slug: string) => SITE(`/events#${slug}`);
+
+// FULL Event node. location is a plain string on EventItem (no separate content
+// collection to key a Place off of), so it is embedded directly. If a future
+// revision adds an organizer/performer Person reference, it MUST use
+// namedStub(authorId(slug), name) — never a bare @id or a second full Person node.
+export function eventNode(e: EventItem) {
+  return { '@type': 'Event', '@id': eventId(e.slug), name: e.name,
+    description: e.description,
+    startDate: e.startDate.toISOString(),
+    ...(e.endDate ? { endDate: e.endDate.toISOString() } : {}),
+    ...(e.location ? { location: { '@type': 'Place', name: e.location } } : {}),
+    ...(e.url ? { url: e.url } : {}),
+    eventAttendanceMode: `https://schema.org/${
+      e.eventAttendanceMode === 'online' ? 'OnlineEventAttendanceMode'
+        : e.eventAttendanceMode === 'mixed' ? 'MixedEventAttendanceMode'
+          : 'OfflineEventAttendanceMode'
+    }` };
 }
 
 export function graph(nodes: unknown[]) {

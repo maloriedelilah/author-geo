@@ -1,0 +1,68 @@
+---
+// Series detail page. Mirrors src/pages/books/[slug].astro: builds the @graph via
+// the engine's jsonld.ts builder, sourced ONLY through the ContentSource seam.
+//
+// DD-001: no full Person node here — authors are referenced by @id + named stub
+// via seriesNode's `authors` param, co-author-safe via Series.authorSlugs.
+import Base from '../../layouts/Base.astro';
+import JsonLd from '../../components/JsonLd.astro';
+import CompsBlock from '../../components/CompsBlock.astro';
+import { FileSource } from '../../lib/sources/FileSource';
+import { seriesNode, bookId, namedStub, graph } from '../../lib/jsonld';
+
+const source = new FileSource();
+
+export async function getStaticPaths() {
+  const src = new FileSource();
+  const seriesList = await src.getSeries();
+  return seriesList.map((s) => ({ params: { slug: s.slug } }));
+}
+
+const { slug } = Astro.params;
+const series = await source.getSeriesBySlug(slug as string);
+if (!series) throw new Error(`No series found for slug "${slug}"`);
+
+const allAuthors = await source.getAuthors();
+const seriesAuthors = allAuthors
+  .filter((a) => series.authorSlugs.includes(a.slug))
+  .map((a) => ({ slug: a.slug, name: a.name }));
+if (seriesAuthors.length === 0) {
+  throw new Error(`Series "${series.slug}" has no resolvable author (authorSlugs: ${series.authorSlugs.join(', ')})`);
+}
+
+const allBooks = await source.getBooks();
+const memberBooks = allBooks
+  .filter((b) => b.seriesSlug === series.slug)
+  .sort((a, b) => (a.seriesPosition ?? 0) - (b.seriesPosition ?? 0));
+const memberIds = memberBooks.map((b) => bookId(b.slug));
+
+const pageGraph = graph([
+  seriesNode(series, memberIds, seriesAuthors),
+  // Minimal named stubs for each member book so hasPart's @ids resolve to
+  // *something* even on a standalone fetch of just this page's JSON-LD — the
+  // full Book node itself lives once on its own /books/<slug> page.
+  ...memberBooks.map((b) => namedStub(bookId(b.slug), b.title, 'Book')),
+]);
+
+const byline = seriesAuthors.map((a) => a.name).join(', ');
+---
+<Base title={`${series.name} — ${byline}`} description={series.description}>
+  <JsonLd graph={pageGraph} />
+  <article>
+    <h1>{series.name}</h1>
+    {series.cover && <img src={series.cover} alt={`Cover art for ${series.name}`} />}
+    <p>{series.description}</p>
+    <p>By <a href="/about">{byline}</a></p>
+
+    <section aria-label="Books in this series">
+      <h2>Books in this series</h2>
+      <ol>
+        {memberBooks.map((b) => (
+          <li><a href={`/books/${b.slug}`}>{b.title}</a></li>
+        ))}
+      </ol>
+    </section>
+
+    <CompsBlock comps={series.comps} />
+  </article>
+</Base>
