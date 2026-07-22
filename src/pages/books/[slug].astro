@@ -50,7 +50,7 @@ const byline = bookAuthors.map((a) => a.name).join(', ');
   <article>
     <h1>{book.title}</h1>
     {book.subtitle && <p class="subtitle">{book.subtitle}</p>}
-    <img src={book.cover} alt={`Cover of ${book.title}`} />
+    <img class="cover" src={book.cover} alt={`Cover of ${book.title}`} />
     <p>{book.description}</p>
     <p>By <a href="/about">{byline}</a></p>
 

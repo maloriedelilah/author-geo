@@ -26,7 +26,8 @@ baked into every page.
 - [Quickstart](#quickstart)
 - [How it's organized](#how-its-organized-engine-vs-content)
 - [Adding your content](#adding-your-content) — the frontmatter contract
-- [Configuration](#configuration) — the three things you MUST set
+- [Configuration](#configuration) — site URL, leads, theme/nav/footer
+- [Legal pages](#legal-pages-privacy--terms) — Privacy Policy & Terms of Use
 - [Validating your structured data](#validating-your-structured-data)
 - [Deploying to Cloudflare Pages](#deploying-to-cloudflare-pages)
 - [Tier 2 — what's deferred](#tier-2--whats-deferred)
@@ -198,7 +199,7 @@ Appearances, launches, signings. All events render on `/events`.
 
 ## Configuration
 
-Three things you **must** set before deploying. The first is the classic
+A few things worth setting before deploying. The first is the classic
 silent-failure trap — the build passes with placeholders, but your structured data
 is wrong.
 
@@ -226,12 +227,60 @@ leads: {
 This selects which adapter the newsletter form uses. The signup **endpoint** is
 Tier 2 (see below); the choice is wired now so it's ready.
 
-### 3. Secrets — `.env` (Tier 2)
+### 3. Site chrome — theme, nav, footer (`src/config.ts`)
+
+Also in `src/config.ts`, alongside `siteUrl` and `leads`:
+
+```ts
+theme: {
+  mode: 'dark',        // 'dark' | 'light' — the two built-in palettes
+  accent: undefined,   // e.g. '#ffb454' — override just the accent color, optional
+},
+nav: [
+  { label: 'Series', href: '/series' },
+  { label: 'About', href: '/about' },
+  // add { label: 'Contact', href: '/contact' } once you have a contact page
+],
+footer: {
+  tagline: undefined,  // optional one-line blurb under the footer links
+  links: [],           // extra footer links beyond the built-in Privacy/Terms
+},
+```
+
+This is an **author-time** choice, not a visitor-facing toggle — if you're an AI
+building this site for an author, ask them light or dark, set `theme.mode`, and
+optionally tweak `theme.accent` to taste. No CSS editing required. The palettes
+themselves live in `src/styles/theme.css` as CSS custom properties, if you do
+want to go further (e.g. add a third palette).
+
+`/privacy` and `/terms` are built in and always linked from the footer — see
+[Legal pages](#legal-pages-privacy--terms) below to edit their text.
+
+### 4. Secrets — `.env` (Tier 2)
 
 Copy `.env.example` to `.env` and fill in the block for your chosen provider
 (`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`). These
 are only consumed once Tier 2's endpoint is live. **Never commit real values** —
 set them as Cloudflare Pages secrets in production.
+
+---
+
+## Legal pages (Privacy & Terms)
+
+`/privacy` and `/terms` ship built in, sourced from a `legal` content collection
+(`src/content/legal/privacy.md`, `src/content/legal/terms.md`) — edit them like
+any other content, no engine changes needed. They're plain long-form pages: no
+JSON-LD is emitted for them (they aren't a schema.org entity), and their frontmatter
+contract is just `title`, `slug` (`'privacy'` or `'terms'` — fixed, one file each),
+and `updated` (a date, so a stale unreviewed policy is visible, not silent).
+
+**Both ship with generic, GDPR-aware starter text and an explicit banner saying
+so.** They are not legal advice and have not been reviewed by a lawyer — have them
+reviewed for your jurisdiction and actual data practices (what your lead-capture
+provider collects, your hosting provider, any analytics you add later) before
+relying on them. Update the `updated` frontmatter date whenever you revise the text.
+
+Both pages are always linked from the site footer automatically — nothing else to wire up.
 
 ---
 
@@ -331,16 +380,19 @@ asked to), this is the map — and the contract you must not break.
 ```
 src/
   content.config.ts     # THE CONTRACT: Zod schemas for every collection. Source of truth.
-  config.ts             # author-editable behavior (site URL, leads provider)
+  config.ts             # author-editable behavior (site URL, leads provider, theme/nav/footer)
+  styles/theme.css       # the two built-in palettes (CSS custom properties) + base layout/type
   lib/
     ContentSource.ts     # the seam: the interface templates + JSON-LD depend on
     sources/FileSource.ts# reads content collections -> ContentSource (co-author aware)
     jsonld.ts            # THE ENGINE: builds the schema.org @graph (nodes + named stubs)
     leads/               # MailerLite / EmailOctopus adapters (Tier 2)
-  layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub)
-  components/            # JsonLd, SubscribeForm, CompsBlock
+  layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub); wraps
+                         #   every page in Header/Footer and applies theme.mode/accent
+  components/            # JsonLd, SubscribeForm, CompsBlock, Header, Footer
   pages/                 # route templates: index, about, books/[slug], series/[slug],
-                         #   themes/[slug], events/index
+                         #   series/index (nav landing page), themes/[slug], events/index,
+                         #   privacy, terms (legal collection, no JSON-LD)
 ```
 
 **The rules that make the structured data correct** (violating them is a silent

@@ -10,9 +10,12 @@
 // — it does NOT depend on the page passing one in — and emits a NAMED STUB
 // (never a bare @id) pointing at the canonical Person node defined once on /about.
 import JsonLd from '../components/JsonLd.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
 import { authorId, namedStub } from '../lib/jsonld';
 import { FileSource } from '../lib/sources/FileSource';
 import { siteConfig } from '../config';
+import '../styles/theme.css';
 
 interface Props {
   title: string;
@@ -44,7 +47,7 @@ const siteGraph = {
 };
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme={siteConfig.theme.mode}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -52,13 +55,20 @@ const siteGraph = {
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={Astro.url.toString()} />
     <JsonLd graph={siteGraph} />
+    {siteConfig.theme.accent && (
+      <style set:html={`:root[data-theme="${siteConfig.theme.mode}"] { --accent: ${siteConfig.theme.accent}; }`} />
+    )}
   </head>
   <body>
-    <nav aria-label="breadcrumbs">
-      <slot name="breadcrumbs" />
-    </nav>
-    <main>
-      <slot />
-    </main>
+    <div class="site-shell">
+      <Header authorName={primaryAuthor.name} />
+      <nav aria-label="breadcrumbs">
+        <slot name="breadcrumbs" />
+      </nav>
+      <main class="wrap">
+        <slot />
+      </main>
+      <Footer authorName={primaryAuthor.name} sameAs={primaryAuthor.sameAs} />
+    </div>
   </body>
 </html>
