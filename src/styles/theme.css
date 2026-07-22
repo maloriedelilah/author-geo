@@ -306,7 +306,11 @@ section + section {
   gap: 1rem;
 }
 
-.book-thumb {
+/* Higher specificity than ".card img" (which the series-list <section class="card">
+   wrapper otherwise matches at equal-or-higher specificity, silently overriding this
+   150px cap with the .cover rule's 400px) — scope to the list wrapper so this wins
+   regardless of source order. */
+.book-thumb-list .book-thumb {
   flex-shrink: 0;
   max-height: 150px;
   width: auto;
