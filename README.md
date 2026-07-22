@@ -14,6 +14,11 @@ baked into every page.
 - **Tier 2 (deferred, seam in place):** a live newsletter signup endpoint. The
   form ships now and goes live when Tier 2 lands — see [Tier 2](#tier-2--whats-deferred).
 
+> **Editing this site with an AI agent?** Point it at **[`SKILL.md`](./SKILL.md)** —
+> a self-contained authoring procedure (the content contract, the per-type recipes,
+> and the validation gate to run before committing). This README is the *reference*;
+> `SKILL.md` is the *loop*.
+
 ---
 
 ## Table of contents
