@@ -30,8 +30,17 @@ if (bookAuthors.length === 0) {
   throw new Error(`Book "${book.slug}" has no resolvable author (authorSlugs: ${book.authorSlugs.join(', ')})`);
 }
 
+// Resolve the series to a {slug, name} so bookNode can emit isPartOf as a NAMED
+// STUB (DD-001) rather than a bare @id that would dangle on this page.
+const series = book.seriesSlug
+  ? await source.getSeriesBySlug(book.seriesSlug)
+  : undefined;
+
 const pageGraph = graph([
-  bookNode(book, { seriesSlug: book.seriesSlug, authors: bookAuthors }),
+  bookNode(book, {
+    series: series ? { slug: series.slug, name: series.name } : undefined,
+    authors: bookAuthors,
+  }),
 ]);
 
 const byline = bookAuthors.map((a) => a.name).join(', ');
