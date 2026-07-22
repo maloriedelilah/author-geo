@@ -1,0 +1,37 @@
+---
+// Events listing. Tier-1 scope has no per-event detail page, so each Event's
+// canonical @id is anchored to this listing page itself (see eventId in
+// jsonld.ts) rather than a route of its own.
+import Base from '../../layouts/Base.astro';
+import JsonLd from '../../components/JsonLd.astro';
+import { FileSource } from '../../lib/sources/FileSource';
+import { eventNode, graph } from '../../lib/jsonld';
+
+const source = new FileSource();
+const events = await source.getEvents();
+const sorted = [...events].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
+
+const pageGraph = graph(sorted.map((e) => eventNode(e)));
+---
+<Base title="Events" description="Upcoming appearances and events.">
+  <JsonLd graph={pageGraph} />
+  <article>
+    <h1>Events</h1>
+    {sorted.length === 0 && <p>No upcoming events.</p>}
+    <ul>
+      {sorted.map((e) => (
+        <li id={e.slug}>
+          <h2>{e.name}</h2>
+          <p>
+            <time datetime={e.startDate.toISOString()}>
+              {e.startDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </time>
+            {e.location && <> — {e.location}</>}
+          </p>
+          <p>{e.description}</p>
+          {e.url && <p><a href={e.url}>Details &rarr;</a></p>}
+        </li>
+      ))}
+    </ul>
+  </article>
+</Base>

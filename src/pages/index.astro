@@ -1,0 +1,77 @@
+---
+// Home / author landing.
+//
+// DD-001: this page emits NO page-level JSON-LD of its own. Base.astro already
+// emits the sitewide WebSite (with publisher as a named stub — DD-001), and the
+// author blurb below is DISPLAY TEXT ONLY, linking to /about#<slug> where the
+// canonical full Person node lives exactly once. Emitting a second full Person
+// node (or even a bare @id) here would violate the identity spine, so: don't.
+import Base from '../layouts/Base.astro';
+import { FileSource } from '../lib/sources/FileSource';
+
+const source = new FileSource();
+const [books, seriesList, authors] = await Promise.all([
+  source.getBooks(),
+  source.getSeries(),
+  source.getAuthors(),
+]);
+
+// (a) Most recently released book, featured.
+const featured = [...books].sort(
+  (a, b) => b.datePublished.getTime() - a.datePublished.getTime(),
+)[0];
+
+// (b) Each series, with its member books (ordered by seriesPosition).
+const seriesWithBooks = seriesList.map((s) => ({
+  series: s,
+  books: books
+    .filter((b) => b.seriesSlug === s.slug)
+    .sort((a, b) => (a.seriesPosition ?? 0) - (b.seriesPosition ?? 0)),
+}));
+
+// (c) Truncated "about the author" blurb for the site's main author — the same
+// primary/first author entry Base.astro treats as the WebSite publisher.
+const primaryAuthor = authors[0];
+const BIO_TRUNCATE_CHARS = 220;
+const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CHARS
+  ? `${primaryAuthor.bio.slice(0, BIO_TRUNCATE_CHARS).trimEnd()}…`
+  : primaryAuthor?.bio;
+---
+<Base title={primaryAuthor?.name ?? 'Home'} description={primaryAuthor?.bio}>
+  {featured && (
+    <section aria-label="Latest release">
+      <h1>Latest release</h1>
+      <article>
+        <img src={featured.cover} alt={`Cover of ${featured.title}`} />
+        <h2><a href={`/books/${featured.slug}`}>{featured.title}</a></h2>
+        <p>{featured.description}</p>
+        <p><a href={`/books/${featured.slug}`}>Learn more &rarr;</a></p>
+      </article>
+    </section>
+  )}
+
+  {seriesWithBooks.length > 0 && (
+    <section aria-label="Series">
+      <h2>Series</h2>
+      {seriesWithBooks.map(({ series, books: memberBooks }) => (
+        <article>
+          <h3><a href={`/series/${series.slug}`}>{series.name}</a></h3>
+          <p>{series.description}</p>
+          <ul>
+            {memberBooks.map((b) => (
+              <li><a href={`/books/${b.slug}`}>{b.title}</a></li>
+            ))}
+          </ul>
+        </article>
+      ))}
+    </section>
+  )}
+
+  {primaryAuthor && (
+    <section aria-label="About the author">
+      <h2>About {primaryAuthor.name}</h2>
+      <p>{truncatedBio}</p>
+      <p><a href={`/about#${primaryAuthor.slug}`}>More about {primaryAuthor.name} &rarr;</a></p>
+    </section>
+  )}
+</Base>
