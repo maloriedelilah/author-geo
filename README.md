@@ -217,7 +217,19 @@ domain — valid-looking, silently wrong. Set your real production URL in **both
 
 Keep them identical.
 
-### 2. Lead-capture provider — `src/config.ts`
+### 2. Site slogan — `src/config.ts`
+
+```ts
+slogan: undefined,   // e.g. 'Hard science fiction for readers who like their futures plausible.'
+```
+
+A short line shown at the very top of the homepage, above "Latest release" —
+plain display text, not a schema.org entity, so it lives in config rather than
+`src/content/`. Optional — leave `undefined` to skip it. (Not to be confused
+with `footer.tagline` below, which is a separate, shorter line under the footer
+links.)
+
+### 3. Lead-capture provider — `src/config.ts`
 
 ```ts
 leads: {
@@ -230,7 +242,7 @@ leads: {
 This selects which adapter the newsletter form uses. The signup **endpoint** is
 Tier 2 (see below); the choice is wired now so it's ready.
 
-### 3. Site chrome — theme, header, nav, footer (`src/config.ts`)
+### 4. Site chrome — theme, header, nav, footer (`src/config.ts`)
 
 Also in `src/config.ts`, alongside `siteUrl` and `leads`:
 
@@ -295,8 +307,20 @@ changing the fonts — see [Theming guide](#theming-guide) below.
   The rule (`src/lib/links.ts`) is a simple one: any `http(s)://` absolute URL
   counts as off-site; every internal route in this repo is a root-relative path,
   so it never misfires.
+- **Series listings (`/series` and a series' own `/series/<slug>` page) show
+  each book as a row**: a clickable 150px thumbnail, the title, a "Book N"
+  label (from the book's `seriesPosition`, omitted if unset), and the first
+  ~70 words of the description with a "more" link to the book's own page for
+  the rest. One shared component (`src/components/BookListItem.astro`) drives
+  both surfaces, so they can't drift out of sync.
+- **The author's `photo`** (if set — see the Author table above) renders at up
+  to 220px tall next to their bio, in the same cover-left/body-right layout as
+  a book card, on both the homepage's "About the author" teaser and their own
+  section on `/about`. It's also already emitted as the schema.org `Person`'s
+  `image` (`src/lib/jsonld.ts`) — no extra config needed for structured data,
+  just add the `photo` field to the author's frontmatter.
 
-### 4. Secrets — `.env` (Tier 2)
+### 5. Secrets — `.env` (Tier 2)
 
 Copy `.env.example` to `.env` and fill in the block for your chosen provider
 (`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`). These

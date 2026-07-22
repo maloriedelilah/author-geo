@@ -8,6 +8,7 @@
 // node (or even a bare @id) here would violate the identity spine, so: don't.
 import Base from '../layouts/Base.astro';
 import { FileSource } from '../lib/sources/FileSource';
+import { siteConfig } from '../config';
 
 const source = new FileSource();
 const [books, seriesList, authors] = await Promise.all([
@@ -38,6 +39,10 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
   : primaryAuthor?.bio;
 ---
 <Base title={primaryAuthor?.name ?? 'Home'} description={primaryAuthor?.bio}>
+  {siteConfig.slogan && (
+    <p class="site-slogan">{siteConfig.slogan}</p>
+  )}
+
   {featured && (
     <section aria-label="Latest release">
       <h1>Latest release</h1>
@@ -74,8 +79,15 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
   {primaryAuthor && (
     <section aria-label="About the author">
       <h2>About {primaryAuthor.name}</h2>
-      <p>{truncatedBio}</p>
-      <p><a href={`/about#${primaryAuthor.slug}`}>More about {primaryAuthor.name} &rarr;</a></p>
+      <div class="author-card">
+        {primaryAuthor.photo && (
+          <img class="author-photo" src={primaryAuthor.photo} alt={primaryAuthor.name} />
+        )}
+        <div class="author-card-body">
+          <p>{truncatedBio}</p>
+          <p><a href={`/about#${primaryAuthor.slug}`}>More about {primaryAuthor.name} &rarr;</a></p>
+        </div>
+      </div>
     </section>
   )}
 </Base>

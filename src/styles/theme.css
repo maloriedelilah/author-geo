@@ -289,21 +289,42 @@ section + section {
   }
 }
 
-/* --- Book thumbnails (series list page) ------------------------------------ */
+/* --- Book listing rows (series index + a series' own book list) ----------- */
+/* BookListItem.astro: thumbnail left, title/Book #/short-blurb+more right;
+   folds to a stacked column on narrow screens, same convention as .book-card. */
 
 .book-thumb-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1.25rem;
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.book-thumb-list li {
+.book-thumb-list li,
+.book-list-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1rem;
+}
+
+.book-list-item .book-list-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-list-item .book-list-item-body > :first-child {
+  margin-top: 0;
+}
+
+.book-number {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: -0.3em 0 0.5em;
 }
 
 /* Higher specificity than ".card img" (which the series-list <section class="card">
@@ -316,6 +337,59 @@ section + section {
   width: auto;
   border-radius: 4px;
   box-shadow: var(--shadow);
+}
+
+@media (max-width: 560px) {
+  .book-thumb-list li,
+  .book-list-item {
+    flex-direction: column;
+  }
+}
+
+/* --- Author card (photo + bio side by side) -------------------------------- */
+/* Used on the homepage's "About the author" teaser and the About page's own
+   per-author section. Same cover-left/body-right convention as .book-card. */
+
+.author-card {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.author-photo {
+  flex-shrink: 0;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  max-height: 220px;
+  width: auto;
+}
+
+.author-card .author-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.author-card .author-card-body > :first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .author-card {
+    flex-direction: column;
+  }
+
+  .author-photo {
+    max-height: 200px;
+  }
+}
+
+/* --- Site slogan (homepage, above "Latest release") ------------------------ */
+
+.site-slogan {
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  margin: 0 0 2rem;
 }
 
 /* --- Breadcrumbs ------------------------------------------------------------ */
