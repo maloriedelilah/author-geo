@@ -62,8 +62,10 @@ const siteGraph = {
   <body>
     <div class="site-shell">
       <Header authorName={primaryAuthor.name} />
-      <nav aria-label="breadcrumbs">
-        <slot name="breadcrumbs" />
+      <nav class="breadcrumbs" aria-label="breadcrumbs">
+        <div class="wrap">
+          <slot name="breadcrumbs" />
+        </div>
       </nav>
       <main class="wrap">
         <slot />

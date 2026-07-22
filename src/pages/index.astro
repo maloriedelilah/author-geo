@@ -41,11 +41,15 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
   {featured && (
     <section aria-label="Latest release">
       <h1>Latest release</h1>
-      <article class="card">
-        <img class="cover" src={featured.cover} alt={`Cover of ${featured.title}`} />
-        <h2><a href={`/books/${featured.slug}`}>{featured.title}</a></h2>
-        <p>{featured.description}</p>
-        <p><a href={`/books/${featured.slug}`}>Learn more &rarr;</a></p>
+      <article class="card book-card">
+        <a class="cover-link" href={`/books/${featured.slug}`} aria-hidden="true" tabindex="-1">
+          <img class="cover" src={featured.cover} alt="" />
+        </a>
+        <div class="book-card-body">
+          <h2><a href={`/books/${featured.slug}`}>{featured.title}</a></h2>
+          <p>{featured.description}</p>
+          <p><a href={`/books/${featured.slug}`}>Learn more &rarr;</a></p>
+        </div>
       </article>
     </section>
   )}

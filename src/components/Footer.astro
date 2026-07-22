@@ -5,6 +5,7 @@
 // links (already-validated data from the author content collection — no new
 // fields needed). Pure chrome — no JSON-LD here.
 import { siteConfig } from '../config';
+import { externalAttrs } from '../lib/links';
 
 interface Props {
   authorName: string;
@@ -33,13 +34,13 @@ function hostLabel(url: string) {
     {siteConfig.footer.tagline && <p class="tagline">{siteConfig.footer.tagline}</p>}
     <ul class="footer-links">
       {legalLinks.map((l) => (
-        <li><a href={l.href}>{l.label}</a></li>
+        <li><a href={l.href} {...externalAttrs(l.href)}>{l.label}</a></li>
       ))}
     </ul>
     {sameAs.length > 0 && (
       <ul class="footer-social" aria-label={`${authorName} elsewhere`}>
         {sameAs.map((url) => (
-          <li><a href={url}>{hostLabel(url)}</a></li>
+          <li><a href={url} {...externalAttrs(url)}>{hostLabel(url)}</a></li>
         ))}
       </ul>
     )}

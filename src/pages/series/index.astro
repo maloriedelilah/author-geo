@@ -27,9 +27,14 @@ const seriesWithBooks = seriesList.map((s) => ({
     <section class="card" aria-labelledby={`series-${series.slug}`}>
       <h2 id={`series-${series.slug}`}><a href={`/series/${series.slug}`}>{series.name}</a></h2>
       <p>{series.description}</p>
-      <ul>
+      <ul class="book-thumb-list">
         {memberBooks.map((b) => (
-          <li><a href={`/books/${b.slug}`}>{b.title}</a></li>
+          <li>
+            <a class="cover-link" href={`/books/${b.slug}`} aria-hidden="true" tabindex="-1">
+              <img class="book-thumb" src={b.cover} alt="" />
+            </a>
+            <a href={`/books/${b.slug}`}>{b.title}</a>
+          </li>
         ))}
       </ul>
     </section>

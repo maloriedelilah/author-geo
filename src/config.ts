@@ -23,12 +23,30 @@ export const siteConfig = {
     accent: undefined as string | undefined, // e.g. '#ffb454' — omit to use the mode's default
   },
 
+  // --- Header --------------------------------------------------------------
+  // `logo.src` is a path under public/ (e.g. '/logo.svg') for authors who want
+  // a wordmark image instead of plain text — omit it (leave undefined) to fall
+  // back to the author's name as a text wordmark, which is the default and
+  // needs no asset at all. `logo.alt` defaults to the author's name if unset.
+  //
+  // `layout` picks how the brand (logo/wordmark) and nav sit relative to each
+  // other: 'left' is the classic header — brand on the left, nav on the right,
+  // one row. 'centered' stacks them — brand centered on its own row, nav
+  // centered underneath. Ask the author which they'd like, same as theme.mode.
+  header: {
+    logo: {
+      src: undefined as string | undefined, // e.g. '/logo.svg'
+      alt: undefined as string | undefined,
+    },
+    layout: 'left' as 'left' | 'centered',
+  },
+
   // --- Header nav --------------------------------------------------------
-  // Rendered left-to-right in the header, after the site wordmark (the primary
-  // author's name, linking to /). /contact ships as a static form (Tier 1);
-  // it doesn't actually deliver mail until the /api/contact endpoint is wired
-  // in Tier 2 — see README "Contact form". Remove this nav entry if you'd
-  // rather hide the page until that's live.
+  // Rendered in the header per `header.layout` above, after the brand
+  // (logo/wordmark). /contact ships as a static form (Tier 1); it doesn't
+  // actually deliver mail until the /api/contact endpoint is wired in Tier 2
+  // — see README "Contact form". Remove this nav entry if you'd rather hide
+  // the page until that's live.
   nav: [
     { label: 'Series', href: '/series' },
     { label: 'About', href: '/about' },

@@ -6,6 +6,7 @@ import Base from '../../layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import { FileSource } from '../../lib/sources/FileSource';
 import { eventNode, graph } from '../../lib/jsonld';
+import { externalAttrs } from '../../lib/links';
 
 const source = new FileSource();
 const events = await source.getEvents();
@@ -29,7 +30,7 @@ const pageGraph = graph(sorted.map((e) => eventNode(e)));
             {e.location && <> — {e.location}</>}
           </p>
           <p>{e.description}</p>
-          {e.url && <p><a href={e.url}>Details &rarr;</a></p>}
+          {e.url && <p><a href={e.url} {...externalAttrs(e.url)}>Details &rarr;</a></p>}
         </li>
       ))}
     </ul>
