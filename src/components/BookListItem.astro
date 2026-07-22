@@ -1,0 +1,36 @@
+---
+// Shared row for a book inside a LISTING of books (series index's per-series
+// member list, and a series' own detail page) — NOT used on the homepage's
+// single featured-book card or the book detail page's own hero, which have
+// their own layouts. One place to keep "thumbnail + title + Book # + short
+// blurb + more link" consistent across both series-listing surfaces.
+//
+// No JSON-LD here — this is pure display; the canonical Book node lives once
+// on its own /books/<slug> page (DD-001), same as everywhere else book covers
+// are shown as clickable teasers.
+import { truncateWords } from '../lib/text';
+
+interface Props {
+  slug: string;
+  title: string;
+  cover: string;
+  description: string;
+  seriesPosition?: number;
+  maxWords?: number;
+}
+const {
+  slug, title, cover, description, seriesPosition, maxWords = 70,
+} = Astro.props as Props;
+
+const { text: blurb, truncated } = truncateWords(description, maxWords);
+---
+<li class="book-list-item">
+  <a class="cover-link" href={`/books/${slug}`} aria-hidden="true" tabindex="-1">
+    <img class="book-thumb" src={cover} alt="" />
+  </a>
+  <div class="book-list-item-body">
+    <h3><a href={`/books/${slug}`}>{title}</a></h3>
+    {seriesPosition != null && <p class="book-number">Book {seriesPosition}</p>}
+    <p>{blurb}{truncated && <> <a href={`/books/${slug}`}>more</a></>}</p>
+  </div>
+</li>
