@@ -108,6 +108,18 @@ main.wrap {
   flex-wrap: wrap;
 }
 
+.site-header .brand {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.site-header .brand:hover,
+.site-header .brand:focus-visible {
+  text-decoration: none;
+}
+
 .site-header .wordmark {
   font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
   font-size: 1.25rem;
@@ -115,9 +127,29 @@ main.wrap {
   color: var(--text);
 }
 
-.site-header .wordmark:hover {
-  text-decoration: none;
+.site-header .brand:hover .wordmark,
+.site-header .brand:focus-visible .wordmark {
   color: var(--accent);
+}
+
+.site-header .brand-logo {
+  max-height: 48px;
+  width: auto;
+  display: block;
+}
+
+/* 'left' (default): brand left, nav right, one row. */
+.site-header--left .wrap {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+/* 'centered': brand centered on its own row, nav centered underneath. */
+.site-header--centered .wrap {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 
 .site-nav {
@@ -202,6 +234,10 @@ main.wrap {
 .cover {
   border-radius: 6px;
   box-shadow: var(--shadow);
+  /* Cap it — source cover art is print-resolution and was rendering as a
+     "monster" full-width image with nothing capping its display height. */
+  max-height: 400px;
+  width: auto;
 }
 
 section + section {
@@ -218,8 +254,97 @@ section + section {
   font-size: 0.9rem;
 }
 
+/* --- Book cards (cover + title/blurb side by side) ------------------------- */
+/* Used on the homepage's featured-book card and the book detail page's hero.
+   Cover on the left (capped via .cover above), title/description to the
+   right; folds to a single stacked column on narrow screens. */
+
+.book-card {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.book-card .cover-link {
+  flex-shrink: 0;
+  display: block;
+}
+
+.book-card .book-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.book-card .book-card-body > :first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .book-card {
+    flex-direction: column;
+  }
+
+  .book-card .cover {
+    max-height: 320px;
+  }
+}
+
+/* --- Book thumbnails (series list page) ------------------------------------ */
+
+.book-thumb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.book-thumb-list li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.book-thumb {
+  flex-shrink: 0;
+  max-height: 150px;
+  width: auto;
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+}
+
+/* --- Breadcrumbs ------------------------------------------------------------ */
+
+.breadcrumbs {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.breadcrumbs .wrap:empty {
+  display: none;
+}
+
+.breadcrumbs .wrap:not(:empty) {
+  padding-top: 0.75rem;
+}
+
+.breadcrumbs a {
+  color: var(--text-muted);
+}
+
+.breadcrumbs a:hover,
+.breadcrumbs a:focus-visible {
+  color: var(--accent);
+}
+
+.breadcrumbs .sep {
+  margin: 0 0.4em;
+  opacity: 0.6;
+}
+
 @media (max-width: 560px) {
-  .site-header .wrap {
+  .site-header--left .wrap {
     flex-direction: column;
     align-items: flex-start;
   }

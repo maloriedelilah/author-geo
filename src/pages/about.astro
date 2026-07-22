@@ -7,6 +7,7 @@ import Base from '../layouts/Base.astro';
 import JsonLd from '../components/JsonLd.astro';
 import { FileSource } from '../lib/sources/FileSource';
 import { authorNode, graph } from '../lib/jsonld';
+import { externalAttrs } from '../lib/links';
 
 const source = new FileSource();
 const authors = await source.getAuthors();
@@ -25,7 +26,7 @@ const pageGraph = graph(authors.map((a) => authorNode(a)));
         {a.sameAs.length > 0 && (
           <ul>
             {a.sameAs.map((url) => (
-              <li><a href={url}>{url}</a></li>
+              <li><a href={url} {...externalAttrs(url)}>{url}</a></li>
             ))}
           </ul>
         )}

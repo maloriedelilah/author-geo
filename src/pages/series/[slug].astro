@@ -50,7 +50,7 @@ const byline = seriesAuthors.map((a) => a.name).join(', ');
   <JsonLd graph={pageGraph} />
   <article>
     <h1>{series.name}</h1>
-    {series.cover && <img src={series.cover} alt={`Cover art for ${series.name}`} />}
+    {series.cover && <img class="cover" src={series.cover} alt={`Cover art for ${series.name}`} />}
     <p>{series.description}</p>
     <p>By <a href="/about">{byline}</a></p>
 

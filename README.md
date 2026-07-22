@@ -230,7 +230,7 @@ leads: {
 This selects which adapter the newsletter form uses. The signup **endpoint** is
 Tier 2 (see below); the choice is wired now so it's ready.
 
-### 3. Site chrome — theme, nav, footer (`src/config.ts`)
+### 3. Site chrome — theme, header, nav, footer (`src/config.ts`)
 
 Also in `src/config.ts`, alongside `siteUrl` and `leads`:
 
@@ -238,6 +238,13 @@ Also in `src/config.ts`, alongside `siteUrl` and `leads`:
 theme: {
   mode: 'dark',        // 'dark' | 'light' — the two built-in palettes
   accent: undefined,   // e.g. '#ffb454' — override just the accent color, optional
+},
+header: {
+  logo: {
+    src: undefined,    // e.g. '/logo.svg' — a path under public/. Omit for a text wordmark.
+    alt: undefined,    // defaults to the author's name if unset
+  },
+  layout: 'left',      // 'left' (brand left, nav right) | 'centered' (brand centered, nav underneath)
 },
 nav: [
   { label: 'Series', href: '/series' },
@@ -256,11 +263,38 @@ optionally tweak `theme.accent` to taste. No CSS editing required. The palettes
 themselves live in `src/styles/theme.css` as CSS custom properties, if you do
 want to go further (e.g. add a third palette).
 
+**Logo:** if the author has brand artwork, drop it in `public/` (e.g.
+`public/logo.svg`) and point `header.logo.src` at it (`'/logo.svg'` — Astro serves
+`public/` at the site root). Leaving `logo.src` unset is the default and needs no
+asset at all — the header falls back to the author's name as a plain text
+wordmark. Either way, `header.layout` controls whether the brand sits to the left
+with the nav on the right (`'left'`, the classic look) or centered with the nav
+stacked underneath it (`'centered'`).
+
 `/privacy` and `/terms` are built in and always linked from the footer — see
 [Legal pages](#legal-pages-privacy--terms) below to edit their text.
 
 For anything beyond an accent tweak — a full palette swap, a third theme, or
 changing the fonts — see [Theming guide](#theming-guide) below.
+
+**A few things the engine handles automatically, with no config needed:**
+- **Cover images are capped at 400px tall** (`.cover` in `theme.css`) wherever a
+  full book/series cover renders — the raw source art is print-resolution and
+  would otherwise blow out the layout. Series-list thumbnails are capped
+  separately at 150px tall (`.book-thumb`).
+- **Any book cover shown on the homepage or the series list page is clickable**,
+  linking to the book's page — same destination as the adjacent title link (the
+  cover's own link is marked `aria-hidden`/non-tabbable so screen readers don't
+  announce the same link twice back to back).
+- **A book that belongs to a series gets a breadcrumb** back to that series' page,
+  rendered above the title (`Base.astro`'s `breadcrumbs` slot). Books with no
+  series show no breadcrumb.
+- **Every off-site link opens in a new tab** with `rel="noopener noreferrer"` —
+  retailer buy links, `sameAs` social/Wikipedia/Goodreads links, event ticket
+  links. Internal links (nav, footer legal links, breadcrumbs) are untouched.
+  The rule (`src/lib/links.ts`) is a simple one: any `http(s)://` absolute URL
+  counts as off-site; every internal route in this repo is a root-relative path,
+  so it never misfires.
 
 ### 4. Secrets — `.env` (Tier 2)
 

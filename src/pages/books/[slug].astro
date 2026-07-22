@@ -9,6 +9,7 @@ import Base from '../../layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import { FileSource } from '../../lib/sources/FileSource';
 import { bookNode, graph } from '../../lib/jsonld';
+import { externalAttrs } from '../../lib/links';
 
 const source = new FileSource();
 
@@ -46,20 +47,31 @@ const pageGraph = graph([
 const byline = bookAuthors.map((a) => a.name).join(', ');
 ---
 <Base title={`${book.title} — ${byline}`} description={book.description}>
+  {series && (
+    <Fragment slot="breadcrumbs">
+      <a href={`/series/${series.slug}`}>{series.name}</a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span aria-current="page">{book.title}</span>
+    </Fragment>
+  )}
   <JsonLd graph={pageGraph} />
   <article>
-    <h1>{book.title}</h1>
-    {book.subtitle && <p class="subtitle">{book.subtitle}</p>}
-    <img class="cover" src={book.cover} alt={`Cover of ${book.title}`} />
-    <p>{book.description}</p>
-    <p>By <a href="/about">{byline}</a></p>
+    <div class="book-card">
+      <img class="cover" src={book.cover} alt={`Cover of ${book.title}`} />
+      <div class="book-card-body">
+        <h1>{book.title}</h1>
+        {book.subtitle && <p class="subtitle">{book.subtitle}</p>}
+        <p>{book.description}</p>
+        <p>By <a href="/about">{byline}</a></p>
+      </div>
+    </div>
 
     <section aria-label="Editions">
       <h2>Get the book</h2>
       <ul>
         {book.editions.map((e) => (
           <li>
-            <a href={e.url}>{e.retailer} ({e.format})</a>
+            <a href={e.url} {...externalAttrs(e.url)}>{e.retailer} ({e.format})</a>
             {e.price && <span> — {e.price} {e.currency}</span>}
           </li>
         ))}
