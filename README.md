@@ -28,6 +28,7 @@ baked into every page.
 - [How it's organized](#how-its-organized-engine-vs-content)
 - [Adding your content](#adding-your-content) — the frontmatter contract
 - [Configuration](#configuration) — site URL, leads, theme/nav/footer
+- [Theming guide](#theming-guide) — every CSS variable, what it controls, how to do a full palette swap
 - [Legal pages](#legal-pages-privacy--terms) — Privacy Policy & Terms of Use
 - [Contact form](#contact-form) — the static form + how to wire it to actually send email
 - [Validating your structured data](#validating-your-structured-data)
@@ -258,12 +259,78 @@ want to go further (e.g. add a third palette).
 `/privacy` and `/terms` are built in and always linked from the footer — see
 [Legal pages](#legal-pages-privacy--terms) below to edit their text.
 
+For anything beyond an accent tweak — a full palette swap, a third theme, or
+changing the fonts — see [Theming guide](#theming-guide) below.
+
 ### 4. Secrets — `.env` (Tier 2)
 
 Copy `.env.example` to `.env` and fill in the block for your chosen provider
 (`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`). These
 are only consumed once Tier 2's endpoint is live. **Never commit real values** —
 set them as Cloudflare Pages secrets in production.
+
+---
+
+## Theming guide
+
+`theme.mode` + `theme.accent` in `src/config.ts` (see [Configuration](#configuration)
+above) cover the two things an author is likely to want without touching CSS at
+all. Everything below is for going further — a full palette swap, a third theme,
+or different fonts.
+
+Both palettes live in **`src/styles/theme.css`** as CSS custom properties, scoped
+under `:root[data-theme="dark"]` and `:root[data-theme="light"]`. `Base.astro` sets
+`data-theme` on `<html>` from `siteConfig.theme.mode`, and inlines `--accent`/
+`--accent-contrast` overrides in a `<style>` tag in `<head>` if `theme.accent` is
+set — so an accent override always wins over the palette default, and nothing
+else needs to change.
+
+### The variables
+
+| Variable | Controls | Dark default | Light default |
+|---|---|---|---|
+| `--bg` | Page background | `#0b0e14` | `#fbfaf7` |
+| `--bg-elevated` | Header/footer bg, `.card` bg (book/series cards, etc.) | `#12161f` | `#ffffff` |
+| `--text` | Body text, headings, wordmark | `#e8eaf0` | `#1b1f27` |
+| `--text-muted` | Subtitles, footer text, legal "last updated" line | `#9aa3b5` | `#5b6472` |
+| `--accent` | Links, nav hover, wordmark hover | `#5fd3ff` | `#1c5cff` |
+| `--accent-contrast` | Text color drawn *on top of* an accent-colored fill (currently unused by any filled component, but kept so a future button/badge has a correct contrast color ready) | `#04141a` | `#ffffff` |
+| `--border` | Header/footer border, `.card` border | `#232838` | `#e3e1da` |
+| `--shadow` | Cover image drop shadow (`.card img`, `.cover`) | `0 8px 24px rgba(0,0,0,0.4)` | `0 8px 24px rgba(20,20,20,0.08)` |
+
+### Doing a full palette swap
+
+Edit the values inside the relevant `:root[data-theme="..."] { ... }` block in
+`theme.css` directly — e.g. to retheme dark mode around a purple accent instead
+of cyan, change `--accent` and `--accent-contrast` together (contrast must stay
+readable against the new accent, since nothing currently auto-computes it).
+Keep `--bg` vs `--bg-elevated` and `--text` vs `--text-muted` each a step apart in
+contrast — that's what gives the header/footer/cards visual separation from the
+page body.
+
+### Adding a third theme
+
+The two palettes aren't hardcoded elsewhere — `Base.astro` just writes whatever
+string is in `theme.mode` into `data-theme`. To add e.g. a `"sepia"` theme:
+
+1. Add a `:root[data-theme="sepia"] { ... }` block to `theme.css` defining all
+   eight variables above.
+2. Loosen the `theme.mode` type in `src/config.ts` (and its Zod/TS type if one
+   constrains it to `'dark' | 'light'`) to include `'sepia'`.
+3. Set `theme.mode: 'sepia'`.
+
+No component code needs to change — components only ever reference the CSS
+variables, never a mode name directly.
+
+### Fonts
+
+Not yet a `config.ts` setting — change the two `font-family` stacks directly in
+`theme.css`: the `body` rule (UI/body text — currently a system-font stack) and
+the `h1, h2, h3, h4` rule (headings — currently Georgia/serif, deliberately
+distinct from body for a "book" feel). If you want this configurable without a
+CSS edit, that's a reasonable follow-up: add `theme.fontBody`/`theme.fontHeading`
+to `config.ts` and inline them the same way `Base.astro` already inlines the
+accent override.
 
 ---
 
