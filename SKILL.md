@@ -16,11 +16,13 @@ trust. A wrong edit usually still *builds green* and *looks fine* — it fails s
 in the JSON-LD. These rules exist because each one is a silent-failure trap that has
 actually bitten:
 
-1. **Design Decisions (DDs) are authoritative.** The content model encodes locked
-   decisions (identity model, editions/offers model). Do not "improve" the JSON-LD
-   shape emitted by `src/lib/jsonld.ts` to match your intuition — if you think a
-   shape is wrong, that's a decision for the maintainer, not an edit. The shapes and
-   the validator enforce the DDs; fighting them means fighting the contract.
+1. **The JSON-LD shape is a deliberate contract — don't "improve" it.** The identity
+   model and the editions/offers model below are locked decisions, encoded in
+   `src/lib/jsonld.ts` and enforced by the validator. If a shape it emits looks wrong
+   to you, that's a decision for the maintainer to make, not an edit to slip in — your
+   job is to author *content* that fits the contract, not to reshape the contract.
+   Changing an emitter to match your intuition will usually pass the build and quietly
+   break the machine-readable graph the whole site exists to produce.
 
 2. **Never guess a frontmatter field name — read `src/content.config.ts`.** It is the
    single source of truth for every collection's schema (Zod). Field names are exact
@@ -28,7 +30,7 @@ actually bitten:
    `[{term, sameAs?}]`; hub membership is `books`, series membership is *derived from
    books*, not listed on the series). A guessed field name is dropped or rejected.
 
-3. **One canonical identity, referenced by named stub everywhere else (DD-001).**
+3. **One canonical identity, referenced by named stub everywhere else.**
    Each Person/Book/Series is *defined in full exactly once* at its canonical page
    (the author on `/about`, a book on `/books/<slug>`, a series on `/series/<slug>`).
    *Every other place* that mentions it emits a **named stub** — `{"@type": ...,
@@ -44,7 +46,7 @@ actually bitten:
    identity is a duplication error (which "wins"?). Author bylines elsewhere are
    *display text* + a link to `/about`, plus the stub in the JSON-LD.
 
-5. **Editions carry the buy-links, the work carries the canonical URL (DD-005).** A
+5. **Editions carry the buy-links, the work carries the canonical URL.** A
    book's retailer links live on its **editions** as `Offer.url` (`editions[].url` in
    frontmatter). The book's own `url` is its canonical on-site page, emitted
    automatically — never put a retailer link there. One work, many editions, many
@@ -124,7 +126,7 @@ first — then for every page in `dist/`:
 - **merges all blocks on a page into one graph** (a crawler reads them together, so
   cross-references resolve across blocks on the same page);
 - **fails on any dangling `@id`** — a reference to a node not defined on that page.
-  This is the DD-001 rule (Rule 3) enforced.
+  This is Rule 3 (the named-stub rule) enforced.
 
 Exit code is non-zero if any page fails, so it drops straight into CI.
 
@@ -148,6 +150,6 @@ build` (Zod frontmatter validation) is the minimum bar before committing.
 - Field name or shape? → `src/content.config.ts` (never guess).
 - What JSON-LD a page emits? → build it, open the `dist/.../index.html`, read the
   `ld+json` blocks. Ground truth beats assumption.
-- A DD or design rule? → `README.md` and the project's design-decision docs. If a rule
-  seems wrong, surface it to the maintainer — don't edit around it.
+- A design rule? → the five rules above and `README.md`. If a rule seems wrong to you,
+  surface it to the maintainer — don't edit around it.
 - Deployment? → `README.md` (Cloudflare Pages, static build).
