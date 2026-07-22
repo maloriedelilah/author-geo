@@ -36,6 +36,9 @@ export function bookNode(
   opts: { seriesSlug?: string; authors: { slug: string; name: string }[] },
 ) {
   return { '@type': 'Book', '@id': bookId(b.slug), name: b.title,
+    // DD-005/#3: the primary Book owns the single on-site CANONICAL url (its own
+    // page). Editions do NOT carry url — their retailer buy-links live in Offer.url.
+    url: SITE(`/books/${b.slug}`),
     ...(b.subtitle ? { alternateName: b.subtitle } : {}),
     // Co-author-safe: an ARRAY of named stubs, one per author (DD-001) — never a
     // bare @id, never the full Person node re-inlined here.
