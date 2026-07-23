@@ -127,8 +127,8 @@ editions:                                # ARRAY, min 1 — at least one buy lin
   - format: "ebook"                      #   ebook | paperback | hardcover | audiobook
     retailer: "Amazon"
     url: "https://.../buy/ebook"         #   the BUY LINK lives on the edition (-> schema Offer.url), NOT on the book (DD-005)
-    price: "4.99"                        #   optional
-    currency: "USD"                      #   default USD
+    price: "4.99"                        #   REQUIRED — plain decimal string, no currency symbols/commas
+    currency: "USD"                      #   default USD — must be a 3-letter ISO 4217 code
     isbn: "978..."                       #   optional
     asin: "B0..."                        #   optional
 comps:                                   # optional — "comparable titles", rendered inline on the book page
@@ -147,6 +147,16 @@ Two rules the schema enforces that matter for structured data:
   The Book's own canonical `url` is its page on your site (the engine sets it). This
   is DD-005 — a retailer link in `Book.url` would falsely claim the retailer as the
   canonical home of the work.
+- **Every edition requires `price`** (plain decimal string like `"17.99"` — no
+  `$`, no commas, no trailing text) **and `currency`** (3-letter ISO 4217 code,
+  defaults to `USD`). This isn't cosmetic: a `schema.org` `Offer` with a link but
+  no `price`/`priceCurrency` still builds and validates fine structurally, but is
+  **ineligible for Google Merchant/Shopping rich results** — so a missing price
+  would silently cost you real search-shopping visibility with no build-time
+  warning, unless the schema itself refuses to build. It does: a malformed or
+  missing price fails `npm run build` immediately with a message naming the
+  exact book/edition/field, rather than shipping a book that can never surface
+  in Shopping results.
 
 > **Want to see every field in one place?** `src/content/books/the-ember-horizon/`
 > is a deliberately maximal example: all four edition formats, both `isbn` and

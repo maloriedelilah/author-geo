@@ -7,8 +7,14 @@ const edition = z.object({
   asin: z.string().optional(),
   retailer: z.string(),          // e.g. 'Amazon', 'Kobo', 'Apple Books'
   url: z.string().url(),          // buy link lives on the EDITION, not the work
-  price: z.string().optional(),
-  currency: z.string().default('USD'),
+  // REQUIRED, not optional. schema.org/Offer needs BOTH `price` and
+  // `priceCurrency` to be eligible for Google Merchant/Shopping rich results —
+  // a missing price still builds a structurally-valid Offer node, so nothing
+  // upstream would ever catch it. This regex also rules out the other silent
+  // failure mode: a price string that LOOKS filled in but isn't machine-usable
+  // (currency symbols, commas, trailing text) — plain decimal only, e.g. "17.99".
+  price: z.string().regex(/^\d+(\.\d{1,2})?$/, 'price must be a plain decimal number as a string, e.g. "17.99" (no currency symbols or commas)'),
+  currency: z.string().regex(/^[A-Z]{3}$/, 'currency must be a 3-letter ISO 4217 code, e.g. "USD"').default('USD'),
 });
 
 const comp = z.object({
