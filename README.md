@@ -51,8 +51,11 @@ npm run preview  # serve the built dist/ locally
 Requires **Node >= 22.12**.
 
 Out of the box the site builds with **example content** (a fictional author,
-three sample books, one series, one theme). Everything under `src/content/` is
+four sample books, one series, one theme). Everything under `src/content/` is
 placeholder — delete it and drop in your own. See [Adding your content](#adding-your-content).
+One of the four sample books, `the-ember-horizon`, is a deliberately maximal
+example that exercises every book field (including a future `datePublished`,
+which is all it takes to make a book a **preorder** — see [Preorders](#preorders)).
 
 ---
 
@@ -142,6 +145,37 @@ Two rules the schema enforces that matter for structured data:
   The Book's own canonical `url` is its page on your site (the engine sets it). This
   is DD-005 — a retailer link in `Book.url` would falsely claim the retailer as the
   canonical home of the work.
+
+> **Want to see every field in one place?** `src/content/books/the-ember-horizon/`
+> is a deliberately maximal example: all four edition formats, both `isbn` and
+> `asin`, two comps, a subtitle, a series position, and a heavily commented
+> frontmatter block explaining each field inline. It's also the site's example
+> **preorder** — see the next section.
+
+#### Preorders
+
+There's no `isPreorder` flag. A book is a preorder purely because its
+**`datePublished` is in the future** — that one fact, checked by
+`isFutureRelease()` in `src/lib/date.ts`, is the single source of truth that
+drives everything below. Set the date in the past (or just let time pass) and
+a book quietly becomes "released" like any other, with no other edits needed.
+
+What changes automatically while `datePublished` is still in the future:
+- **JSON-LD**: every edition's `Offer.availability` emits
+  `https://schema.org/PreOrder` instead of `https://schema.org/InStock`.
+- **"Latest release"** on the homepage skips it — a preorder can never
+  accidentally claim that slot ahead of an already-released book.
+- **Hero slideshow** on the homepage gets a slide for it (soonest release
+  first), rotating after the "Latest release" slide.
+- **"Coming soon" row** on the homepage — a horizontal scroll strip of
+  upcoming covers, title, series/book number, and release date.
+- **A `Pre-order` badge** appears next to the title on series listing pages
+  and on the book's own detail page.
+
+`src/content/books/the-ember-horizon/index.md` is the worked example — its
+`datePublished` is set well into the future so it exercises all of the above.
+It will eventually pass and the book will just become normal-released content;
+bump the date forward again if you want a live preorder example on hand.
 
 ### Series — `src/content/series/<slug>.md`
 
