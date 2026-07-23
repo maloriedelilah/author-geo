@@ -38,6 +38,12 @@ const absImage = (src?: string) => (src ? SITE(src) : undefined);
 export const authorId = (slug: string) => `${pageUrl('/about')}#${slug}`;
 export const bookId = (slug: string) => `${pageUrl(`/books/${slug}`)}#book`;
 export const seriesId = (slug: string) => `${pageUrl(`/series/${slug}`)}#series`;
+// Route is /themes/<slug> (see src/pages/themes/[slug].astro) even though the
+// content collection + TS type are named "Hub" — matches the live aeon14.com
+// URL convention per that page's own comment. Added 2026-07-23 alongside
+// wiring Book -> Hub cross-links; hubGraph() previously emitted no @id at all
+// (nothing referenced a hub from elsewhere yet, so it went unnoticed).
+export const hubId = (slug: string) => `${pageUrl(`/themes/${slug}`)}#hub`;
 
 // Minimal cross-reference: `{@type, @id, name}`. Just enough that the page's JSON-LD
 // is valid + useful STANDALONE, while the shared @id unifies with the full node at
@@ -58,8 +64,28 @@ export function authorNode(a: Author) {
 
 export function bookNode(
   b: Book,
-  opts: { series?: { slug: string; name: string }; authors: { slug: string; name: string }[] },
+  opts: {
+    series?: { slug: string; name: string };
+    authors: { slug: string; name: string }[];
+    // Themed hub(s) this book is a member of (Hub.books includes it) — the
+    // reverse direction of hubGraph's mainEntity ItemList, which already
+    // lists this book from the HUB's side. Optional + defaults to none so
+    // every existing call site (and any book in no hub) is unaffected.
+    hubs?: { slug: string; name: string }[];
+  },
 ) {
+  // isPartOf is multi-valued here: a book can simultaneously be part of its
+  // BookSeries AND any number of themed hubs (CollectionPage) — schema.org's
+  // isPartOf is not cardinality-limited to one, and reusing it (rather than
+  // inventing a new ad hoc property) keeps this on standard vocabulary. Named
+  // stubs only (DD-001) — never a bare @id, never the full node re-inlined.
+  // Always emitted as an ARRAY when non-empty (never a bare single object)
+  // so a consumer never has to branch on shape depending on how many a book
+  // happens to have.
+  const isPartOf = [
+    ...(opts.series ? [namedStub(seriesId(opts.series.slug), opts.series.name, 'BookSeries')] : []),
+    ...(opts.hubs ?? []).map((h) => namedStub(hubId(h.slug), h.name, 'CollectionPage')),
+  ];
   return { '@type': 'Book', '@id': bookId(b.slug), name: b.title,
     // DD-005/#3: the primary Book owns the single on-site CANONICAL url (its own
     // page). Editions do NOT carry url — their retailer buy-links live in Offer.url.
@@ -71,10 +97,6 @@ export function bookNode(
     description: b.description,
     inLanguage: b.language, datePublished: b.datePublished.toISOString().slice(0, 10),
     genre: b.genres, image: absImage(b.cover),
-    // isPartOf references the series by a NAMED STUB (@type+@id+name), not a bare
-    // @id — DD-001: must resolve standalone on the book page (the full BookSeries
-    // node lives once on its own /series/<slug> page).
-    //
     // NOTE: deliberately does NOT carry `position` here (fixed 2026-07-23).
     // `position` is only a valid property of `ListItem` in schema.org's
     // vocabulary (confirmed against schema.org/ListItem) — Book has no such
@@ -82,7 +104,7 @@ export function bookNode(
     // data that a strict validator flags. The book's position within its
     // series is instead expressed validly via seriesReadingOrder()'s
     // ItemList/ListItem, emitted once on the series' own page.
-    ...(opts.series ? { isPartOf: namedStub(seriesId(opts.series.slug), opts.series.name, 'BookSeries') } : {}),
+    ...(isPartOf.length > 0 ? { isPartOf } : {}),
     workExample: b.editions.map((e) => ({ '@type': 'Book', bookFormat: e.format,
       isbn: e.isbn, potentialAction: undefined,
       // Preorder support: derived from datePublished, never a separate field
@@ -147,8 +169,15 @@ export function breadcrumbNode(items: { name: string; url?: string }[]) {
 // members carry {id, name} so each ItemList entry emits a NAMED STUB (@type+@id+
 // name), never a bare @id — DD-001: the reference must resolve standalone on this
 // page (the full Book node lives once on its own /books/<slug> page).
+//
+// `@id`/`url` added 2026-07-23 (previously this node had neither — nothing
+// referenced a hub from elsewhere yet, so its absence went unnoticed). Now
+// that book pages reference their hub(s) via namedStub(hubId(...)) in
+// bookNode()'s isPartOf, this page's own FULL node needs a real, stable @id
+// for that reference to resolve against (DD-001: one canonical home).
 export function hubGraph(h: Hub, members: { id: string; name: string }[]) {
-  return { '@type': 'CollectionPage', name: h.name, description: h.description,
+  return { '@type': 'CollectionPage', '@id': hubId(h.slug), url: pageUrl(`/themes/${h.slug}`),
+    name: h.name, description: h.description,
     about: h.about.map((t) => ({ '@type': 'DefinedTerm', name: t.term, sameAs: t.sameAs })),
     mainEntity: { '@type': 'ItemList', numberOfItems: members.length,
       itemListElement: members.map((m, i) => ({ '@type': 'ListItem',

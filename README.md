@@ -232,6 +232,16 @@ books:                                   # ARRAY, min 1 — ORDERED list of book
 Unlike a series (membership derived from books), a hub's `books` list is **explicit
 and ordered** — you're hand-curating a themed reading list.
 
+Membership shows up on **both sides** automatically, with nothing extra to author:
+- The hub's own page lists its member books (as it always has).
+- Every member book's own page gets a **"Featured in"** section under "If you
+  like...", linking back to each hub it belongs to (a book can be in more than
+  one). In JSON-LD, this is the book's `isPartOf` array — the same property
+  used for its series, just with a second (or third...) entry per hub it's a
+  member of, each a `CollectionPage` named stub pointing at that hub's `@id`.
+  There's no reverse field to fill in on the book itself; membership is looked
+  up from the hub's `books` list at build time.
+
 ### Event — `src/content/events/<slug>.md`
 
 Appearances, launches, signings. All events render on `/events`.
@@ -404,6 +414,11 @@ changing the fonts — see [Theming guide](#theming-guide) below.
   the hero slideshow above it. The moment the authored date passes and the
   site rebuilds, all of this flips to "released" on its own — nothing to
   toggle back manually.
+- **Book pages list the themed hub(s) they belong to** — a "Featured in"
+  section under "If you like...", linking to each `/themes/<slug>` the book
+  is a member of (see [Theme (hub)](#theme-hub--srccontenthubsslugmd) above).
+  Nothing to configure; a book with no hub membership simply omits the
+  section.
 
 ### 5. Homepage hero slideshow — `src/config.ts`
 
