@@ -78,6 +78,7 @@ const bookIsbn = book.editions.find((e) => e.isbn)?.isbn;
   title={`${book.title} — ${byline}`}
   description={book.description}
   image={book.cover}
+  imageAlt={`Cover of ${book.title}`}
   type="book"
   bookIsbn={bookIsbn}
   bookReleaseDate={book.datePublished}
@@ -101,7 +102,7 @@ const bookIsbn = book.editions.find((e) => e.isbn)?.isbn;
         <p class="release-date">{isPreorder ? 'Releases' : 'Released'} {formatDate(book.datePublished)}</p>
       </div>
       <div class="book-card-body">
-        <h1>{book.title}{isPreorder && <span class="preorder-badge">Pre-order</span>}</h1>
+        <h1>{book.title}{isPreorder && <>{' '}<span class="preorder-badge">Pre-order</span></>}</h1>
         {book.subtitle && <p class="subtitle">{book.subtitle}</p>}
         {series && book.seriesPosition != null && (
           <p class="series-info">

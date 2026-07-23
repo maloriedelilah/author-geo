@@ -35,12 +35,12 @@ const isPreorder = datePublished ? isFutureRelease(datePublished) : false;
 ---
 <li class="book-list-item">
   <a class="cover-link" href={`/books/${slug}`} aria-hidden="true" tabindex="-1">
-    <img class="book-thumb" src={cover} alt="" />
+    <img class="book-thumb" src={cover} alt={`Cover of ${title}`} />
   </a>
   <div class="book-list-item-body">
     <h3>
       <a href={`/books/${slug}`}>{title}</a>
-      {isPreorder && <span class="preorder-badge">Pre-order</span>}
+      {isPreorder && <>{' '}<span class="preorder-badge">Pre-order</span></>}
     </h3>
     {seriesPosition != null && <p class="book-number">Book {seriesPosition}</p>}
     <p class="book-blurb">{blurb}{truncated && <> <a href={`/books/${slug}`}>more</a></>}</p>

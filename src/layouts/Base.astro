@@ -21,10 +21,23 @@
 // to the constant WebSite via `isPartOf`. WebSite.name reuses the exact
 // value already used for `og:site_name` below (the primary author's name)
 // so there is one source of truth for "what is this site called", not two.
+//
+// Per-page node @type override (fixed 2026-07-23): a page whose real subject
+// IS a more specific kind of page (e.g. a themed hub -> CollectionPage) must
+// NOT also get a generic WebPage node — CollectionPage IS-A WebPage in
+// schema.org's own hierarchy, so two separate nodes for the one URL would be
+// the same contradiction-by-duplication as the WebSite bug, just relocated.
+// `pageType`/`pageId`/`pageExtra` let a page template make ITS node the more
+// specific type instead of adding a second, competing one — `pageId` lets it
+// reuse an @id something ELSE already references (e.g. bookNode()'s isPartOf
+// referencing a hub's page by hubId()), and `pageExtra` merges in whatever
+// type-specific properties that more specific type needs (e.g. CollectionPage's
+// `about`/`mainEntity`). Ordinary pages pass none of these and get the
+// original plain-WebPage behavior, unchanged.
 import JsonLd from '../components/JsonLd.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-import { authorId, namedStub } from '../lib/jsonld';
+import { authorId, namedStub, pageUrl } from '../lib/jsonld';
 import { FileSource } from '../lib/sources/FileSource';
 import { siteConfig } from '../config';
 import '../styles/theme.css';
@@ -40,6 +53,14 @@ interface Props {
   // missing og:image just means link previews render without a thumbnail
   // rather than breaking.
   image?: string;
+  // Describes the IMAGE ITSELF (e.g. "Cover of The Cinder Reach"), never the
+  // page (fixed 2026-07-23: this used to default to the page `title` on every
+  // page, which describes the PAGE, not whatever picture is actually shown —
+  // wrong on its face for e.g. the homepage, whose title is the author's
+  // name but whose image is a book cover). REQUIRED alongside `image` — pass
+  // both or neither. When neither is passed (sitewide author-photo fallback),
+  // a correct alt is generated automatically below.
+  imageAlt?: string;
   // Open Graph type. 'book' unlocks the book: namespace props below (only
   // meaningful for actual book pages) — everything else should stay the
   // 'website' default. Doesn't affect Twitter Cards (they don't have a
@@ -49,8 +70,22 @@ interface Props {
   // other — pass whichever the page actually has.
   bookIsbn?: string;
   bookReleaseDate?: Date;
+  // schema.org @type for THIS page's own per-page node (default 'WebPage') —
+  // see the file-level comment above. e.g. 'CollectionPage' for a themed hub.
+  pageType?: string;
+  // Override the per-page node's own @id (default: this page's own URL +
+  // '#webpage'). Pass this when something ELSE already references this
+  // page's node by a different, established @id (e.g. hubId()) so the two
+  // don't drift into two different ids for one node.
+  pageId?: string;
+  // Extra schema.org properties merged onto the per-page node — e.g. a hub's
+  // `about`/`mainEntity`. Omitted (nothing merged) for ordinary pages.
+  pageExtra?: Record<string, unknown>;
 }
-const { title, description, image, type = 'website', bookIsbn, bookReleaseDate } = Astro.props as Props;
+const {
+  title, description, image, imageAlt, type = 'website', bookIsbn, bookReleaseDate,
+  pageType = 'WebPage', pageId, pageExtra,
+} = Astro.props as Props;
 
 const source = new FileSource();
 const authors = await source.getAuthors();
@@ -64,15 +99,24 @@ if (!primaryAuthor) {
 
 // Resolve once here so every page gets a shareable image for free when it has
 // one to offer (its own, or the sitewide author-photo fallback) without every
-// page template having to duplicate this fallback logic itself.
+// page template having to duplicate this fallback logic itself. The alt text
+// is resolved the SAME way, in lockstep, so it can never describe a
+// different image than the one actually rendered (fixed 2026-07-23; see
+// `imageAlt` prop doc above). `?? 'Cover image'` is a last-resort safety net
+// only — every current call site that passes `image` also passes a real
+// `imageAlt`, but a future page that forgets to should get a harmless generic
+// string, never a silent regression back to reusing the page title.
 const ogImageSrc = image ?? primaryAuthor.photo;
 const ogImage = ogImageSrc ? new URL(ogImageSrc, Astro.site).toString() : undefined;
+const resolvedImageAlt = image
+  ? (imageAlt ?? 'Cover image')
+  : (primaryAuthor.photo ? `Photo of ${primaryAuthor.name}` : undefined);
 
 const websiteId = new URL('#website', Astro.site).toString();
 // Astro.url is already the real, trailing-slash-correct URL for this exact
 // page (matches the canonical link below) — build the WebPage's own @id off
 // of it rather than re-deriving a path, so the two can never disagree.
-const pageId = new URL('#webpage', Astro.url).toString();
+const resolvedPageId = pageId ?? new URL('#webpage', Astro.url).toString();
 
 const siteGraph = {
   '@context': 'https://schema.org',
@@ -80,20 +124,26 @@ const siteGraph = {
     {
       '@type': 'WebSite',
       '@id': websiteId,
-      url: siteConfig.siteUrl,
+      // Trailing-slash-normalized (fixed 2026-07-23) — was the bare site
+      // root with no trailing slash, the only remaining url/@id on the site
+      // that didn't agree with canonical's own trailing-slash convention
+      // (see pageUrl()'s doc comment in jsonld.ts for why the slash side is
+      // the correct one to normalize toward, not the other way around).
+      url: pageUrl('/'),
       // Constant across every page — see comment above. NOT the per-page title.
       name: primaryAuthor.name,
       publisher: namedStub(authorId(primaryAuthor.slug), primaryAuthor.name),
     },
     {
-      '@type': 'WebPage',
-      '@id': pageId,
+      '@type': pageType,
+      '@id': resolvedPageId,
       url: Astro.url.toString(),
       name: title,
       ...(description ? { description } : {}),
       // Named stub, never a bare @id (DD-001) — resolves standalone even if
       // a consumer only reads this one page's graph in isolation.
       isPartOf: namedStub(websiteId, primaryAuthor.name, 'WebSite'),
+      ...(pageExtra ?? {}),
     },
   ],
 };
@@ -117,7 +167,7 @@ const siteGraph = {
     <meta property="og:url" content={Astro.url.toString()} />
     <meta property="og:site_name" content={primaryAuthor.name} />
     {ogImage && <meta property="og:image" content={ogImage} />}
-    {ogImage && <meta property="og:image:alt" content={title} />}
+    {ogImage && resolvedImageAlt && <meta property="og:image:alt" content={resolvedImageAlt} />}
     {type === 'book' && bookIsbn && <meta property="book:isbn" content={bookIsbn} />}
     {type === 'book' && bookReleaseDate && (
       <meta property="book:release_date" content={bookReleaseDate.toISOString().slice(0, 10)} />
@@ -132,6 +182,7 @@ const siteGraph = {
     <meta name="twitter:title" content={title} />
     {description && <meta name="twitter:description" content={description} />}
     {ogImage && <meta name="twitter:image" content={ogImage} />}
+    {ogImage && resolvedImageAlt && <meta name="twitter:image:alt" content={resolvedImageAlt} />}
     {siteConfig.social.twitterHandle && (
       <meta
         name="twitter:site"

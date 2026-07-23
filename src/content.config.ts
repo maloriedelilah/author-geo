@@ -49,7 +49,16 @@ const books = defineCollection({
     cover: image(),                       // required — no book ships coverless
     authors: z.array(reference('author')).min(1), // co-author-safe — DD-001
     series: reference('series').optional(),
-    seriesPosition: z.number().optional(),
+    // MUST be a whole number. schema.org/ListItem's `position` (the valid home
+    // for "book N in this series" -- see jsonld.ts's seriesReadingOrder()) is
+    // typed Integer-or-Text; a fractional placeholder like 0.5 for "this is a
+    // prequel" produces a value no ordering consumer can actually use for
+    // sequence, and is exactly the kind of thing that can silently invalidate
+    // the whole ItemList in a strict validator. If a book reads BEFORE the
+    // series' book 1, give it position 0 (schema.org places no floor at 1;
+    // 0 < 1 already expresses "comes first" without renumbering every other
+    // book in the series) rather than inventing a fractional slot.
+    seriesPosition: z.number().int('seriesPosition must be a whole number (e.g. 0 for a prequel that reads before book 1) -- fractional values like 0.5 are not valid ListItem.position values').optional(),
     datePublished: z.coerce.date(),
     language: z.string().default('en'),
     genres: z.array(z.string()).default([]),

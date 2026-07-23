@@ -36,13 +36,13 @@ const { slides, intervalSeconds = 7 } = Astro.props as Props;
           aria-hidden={i === 0 ? 'false' : 'true'}
         >
           <a class="cover-link" href={`/books/${s.slug}`} aria-hidden="true" tabindex="-1">
-            <img class="cover" src={s.cover} alt="" />
+            <img class="cover" src={s.cover} alt={`Cover of ${s.title}`} />
           </a>
           <div class="book-card-body">
             <p class="hero-eyebrow">{s.kind === 'latest' ? 'Latest release' : 'Coming soon'}</p>
             <h2>
               <a href={`/books/${s.slug}`}>{s.title}</a>
-              {s.kind === 'comingSoon' && <span class="preorder-badge">Pre-order</span>}
+              {s.kind === 'comingSoon' && <>{' '}<span class="preorder-badge">Pre-order</span></>}
             </h2>
             <p class="release-date">{s.kind === 'comingSoon' ? 'Releases' : 'Released'} {s.releaseDate}</p>
             {s.description && <p>{s.description}</p>}

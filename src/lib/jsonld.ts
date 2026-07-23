@@ -58,7 +58,17 @@ export function namedStub(id: string, name: string, type = 'Person') {
 // instead of calling this again.
 export function authorNode(a: Author) {
   return { '@type': 'Person', '@id': authorId(a.slug), name: a.name,
-    alternateName: a.alternateName, description: a.bio, url: a.url,
+    alternateName: a.alternateName, description: a.bio,
+    // Person.url is the About page (DD-001's own canonical Person home),
+    // NOT the author-authored content field of the same name (fixed
+    // 2026-07-23). That field is a bare site-root URL with no trailing
+    // slash in practice and is never rendered anywhere on the site itself
+    // (checked: about.astro only renders `sameAs`) -- it was doing nothing
+    // but duplicating, and disagreeing on trailing slash with, the one
+    // value that already has a real job: this Person's own canonical page.
+    // Deriving it here instead means it can never drift from @id's own
+    // page again, on this site or any fork of it.
+    url: pageUrl('/about'),
     image: absImage(a.photo), sameAs: a.sameAs };
 }
 
@@ -170,18 +180,28 @@ export function breadcrumbNode(items: { name: string; url?: string }[]) {
 // name), never a bare @id — DD-001: the reference must resolve standalone on this
 // page (the full Book node lives once on its own /books/<slug> page).
 //
-// `@id`/`url` added 2026-07-23 (previously this node had neither — nothing
-// referenced a hub from elsewhere yet, so its absence went unnoticed). Now
-// that book pages reference their hub(s) via namedStub(hubId(...)) in
-// bookNode()'s isPartOf, this page's own FULL node needs a real, stable @id
-// for that reference to resolve against (DD-001: one canonical home).
-export function hubGraph(h: Hub, members: { id: string; name: string }[]) {
-  return { '@type': 'CollectionPage', '@id': hubId(h.slug), url: pageUrl(`/themes/${h.slug}`),
-    name: h.name, description: h.description,
+// NOTE (fixed 2026-07-23): this used to return a STANDALONE full node
+// (@type/@id/url/name/description + about/mainEntity) — but Base.astro
+// ALSO emits a generic WebPage node for every page, with its OWN @id, for
+// the SAME url, asserting the SAME name/description. That's two page
+// entities contradicting/duplicating each other for one URL — the exact
+// same bug class as the old WebSite-name issue, just relocated onto
+// CollectionPage (which IS-A WebPage in schema.org's own hierarchy, so it's
+// not even two different kinds of thing, just two competing nodes for one).
+// Fix: a hub page's own node is now Base.astro's per-page node, TYPED as
+// CollectionPage instead of the WebPage default (via its `pageType`/`pageId`
+// props — `pageId` passed as this exact hubId() so the @id book pages already
+// reference via bookNode()'s isPartOf keeps working unchanged). This
+// function now returns ONLY the CollectionPage-specific extra properties
+// (about, mainEntity) to be merged onto that single shared node — see
+// themes/[slug].astro.
+export function hubPageExtra(h: Hub, members: { id: string; name: string }[]) {
+  return {
     about: h.about.map((t) => ({ '@type': 'DefinedTerm', name: t.term, sameAs: t.sameAs })),
     mainEntity: { '@type': 'ItemList', numberOfItems: members.length,
       itemListElement: members.map((m, i) => ({ '@type': 'ListItem',
-        position: i + 1, item: namedStub(m.id, m.name, 'Book') })) } };
+        position: i + 1, item: namedStub(m.id, m.name, 'Book') })) },
+  };
 }
 
 // Events currently have no standalone per-event page (Tier-1 scope: one listing

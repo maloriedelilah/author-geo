@@ -57,12 +57,19 @@ const pageGraph = graph([
 const byline = seriesAuthors.map((a) => a.name).join(', ');
 // Prefer the series' own cover; fall back to its first book's so a share of
 // this page still gets a real thumbnail even for series without cover art.
+// shareImageAlt is derived in lockstep with shareImage (never the page title
+// — see Base.astro's `imageAlt` doc) so the two can't end up describing
+// different images.
 const shareImage = series.cover ?? memberBooks[0]?.cover;
+const shareImageAlt = series.cover
+  ? `Cover art for ${series.name}`
+  : (memberBooks[0] ? `Cover of ${memberBooks[0].title}` : undefined);
 ---
 <Base
   title={`${series.name} — ${byline}`}
   description={series.description}
   image={shareImage}
+  imageAlt={shareImageAlt}
 >
   <Fragment slot="breadcrumbs">
     <a href="/">Home</a>
