@@ -6,7 +6,7 @@ import Base from '../../layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import CompsBlock from '../../components/CompsBlock.astro';
 import { FileSource } from '../../lib/sources/FileSource';
-import { hubGraph, bookId, graph } from '../../lib/jsonld';
+import { hubGraph, breadcrumbNode, bookId, pageUrl, graph } from '../../lib/jsonld';
 
 const source = new FileSource();
 
@@ -28,9 +28,19 @@ const memberBooks = hub.bookSlugs
 // @id here would dangle on a standalone fetch of just this page's JSON-LD.
 const members = memberBooks.map((b) => ({ id: bookId(b.slug), name: b.title }));
 
-const pageGraph = graph([hubGraph(hub, members)]);
+// No standalone "Themes" index page exists to link as an intermediate crumb
+// (Tier-1 scope), so the trail goes straight from Home to this theme.
+const pageGraph = graph([
+  hubGraph(hub, members),
+  breadcrumbNode([{ name: 'Home', url: pageUrl('/') }, { name: hub.name }]),
+]);
 ---
 <Base title={hub.name} description={hub.description}>
+  <Fragment slot="breadcrumbs">
+    <a href="/">Home</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">{hub.name}</span>
+  </Fragment>
   <JsonLd graph={pageGraph} />
   <article>
     <h1>{hub.name}</h1>

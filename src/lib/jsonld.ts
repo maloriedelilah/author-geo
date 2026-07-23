@@ -21,7 +21,11 @@ const SITE = (path = '') => new URL(path, import.meta.env.SITE).toString();
 // so JSON-LD never asserts a URL that immediately redirects elsewhere —
 // which is exactly what `<link rel="canonical">` (Astro.url, already
 // trailing-slash-correct) resolves to, keeping the two in agreement.
-const pageUrl = (path: string) => SITE(path.endsWith('/') ? path : `${path}/`);
+//
+// Exported so page templates can build BreadcrumbList item URLs off the same
+// single source of truth (trailing-slash-normalized, absolute) rather than
+// re-deriving their own — see breadcrumbNode() below.
+export const pageUrl = (path: string) => SITE(path.endsWith('/') ? path : `${path}/`);
 
 // Absolute URL for an image field. Covers/photos are stored as root-relative
 // paths (see FileSource.ts) — fine for an <img src> (resolves against the
@@ -70,8 +74,15 @@ export function bookNode(
     // isPartOf references the series by a NAMED STUB (@type+@id+name), not a bare
     // @id — DD-001: must resolve standalone on the book page (the full BookSeries
     // node lives once on its own /series/<slug> page).
-    ...(opts.series ? { isPartOf: namedStub(seriesId(opts.series.slug), opts.series.name, 'BookSeries'),
-         position: b.seriesPosition } : {}),
+    //
+    // NOTE: deliberately does NOT carry `position` here (fixed 2026-07-23).
+    // `position` is only a valid property of `ListItem` in schema.org's
+    // vocabulary (confirmed against schema.org/ListItem) — Book has no such
+    // property, so putting it directly on the Book node is invalid structured
+    // data that a strict validator flags. The book's position within its
+    // series is instead expressed validly via seriesReadingOrder()'s
+    // ItemList/ListItem, emitted once on the series' own page.
+    ...(opts.series ? { isPartOf: namedStub(seriesId(opts.series.slug), opts.series.name, 'BookSeries') } : {}),
     workExample: b.editions.map((e) => ({ '@type': 'Book', bookFormat: e.format,
       isbn: e.isbn, potentialAction: undefined,
       // Preorder support: derived from datePublished, never a separate field
@@ -85,13 +96,50 @@ export function bookNode(
 
 export function seriesNode(
   s: Series,
-  memberIds: string[],
+  members: { id: string; name: string }[],
   authors: { slug: string; name: string }[],
 ) {
   return { '@type': 'BookSeries', '@id': seriesId(s.slug), name: s.name,
     description: s.description,
     author: authors.map((a) => namedStub(authorId(a.slug), a.name)),
-    hasPart: memberIds.map((id) => ({ '@id': id })) };
+    // Named stubs (DD-001), not bare @ids — resolves standalone even for a
+    // consumer that only fetches this one page's graph. Order within `hasPart`
+    // is NOT sufficient to convey reading order on its own (schema.org's own
+    // guidance on itemListElement: markup order alone isn't reliable) — that's
+    // the job of seriesReadingOrder() below, a separate node.
+    hasPart: members.map((m) => namedStub(m.id, m.name, 'Book')) };
+}
+
+// Reading-order ItemList — the VALID home for "book N in this series", instead
+// of an invalid `position` directly on a Book node (fixed 2026-07-23: Book has
+// no such property; `position` only exists on ListItem per schema.org). Mirrors
+// hubGraph's mainEntity ItemList below exactly — same working pattern, reused
+// rather than inventing a second convention. Emitted once, alongside
+// seriesNode(), on the series' own page. Books with no seriesPosition set are
+// filtered out rather than guessing a position for them.
+export function seriesReadingOrder(
+  s: Series,
+  members: { id: string; name: string; position?: number | null }[],
+) {
+  return { '@type': 'ItemList', '@id': `${seriesId(s.slug)}-reading-order`,
+    name: `${s.name} reading order`, numberOfItems: members.length,
+    itemListElement: members
+      .filter((m) => m.position != null)
+      .map((m) => ({ '@type': 'ListItem', position: m.position, item: namedStub(m.id, m.name, 'Book') })) };
+}
+
+// BreadcrumbList — position is VALID here (it's ListItem's own property,
+// unlike the old invalid usage directly on Book). `url` is omitted on the
+// last crumb (the current page) per Google's own BreadcrumbList examples —
+// the current page doesn't need to link to itself. Emit this alongside a
+// MATCHING visible breadcrumb trail (Base.astro's `breadcrumbs` slot) on any
+// page with real hierarchy — a BreadcrumbList that disagrees with what a
+// visitor actually sees is its own kind of contradiction (same family of bug
+// as the WebSite/WebPage name issue fixed in PR #26).
+export function breadcrumbNode(items: { name: string; url?: string }[]) {
+  return { '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name,
+      ...(it.url ? { item: it.url } : {}) })) };
 }
 
 // Hub = CollectionPage.about[DefinedTerm] + mainEntity: ItemList of positioned books.

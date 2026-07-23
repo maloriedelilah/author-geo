@@ -9,7 +9,7 @@ import JsonLd from '../../components/JsonLd.astro';
 import CompsBlock from '../../components/CompsBlock.astro';
 import BookListItem from '../../components/BookListItem.astro';
 import { FileSource } from '../../lib/sources/FileSource';
-import { seriesNode, bookId, namedStub, graph } from '../../lib/jsonld';
+import { seriesNode, seriesReadingOrder, breadcrumbNode, bookId, pageUrl, graph } from '../../lib/jsonld';
 
 const source = new FileSource();
 
@@ -35,14 +35,23 @@ const allBooks = await source.getBooks();
 const memberBooks = allBooks
   .filter((b) => b.seriesSlug === series.slug)
   .sort((a, b) => (a.seriesPosition ?? 0) - (b.seriesPosition ?? 0));
-const memberIds = memberBooks.map((b) => bookId(b.slug));
+// {id, name, position} — position feeds seriesReadingOrder's ItemList/ListItem
+// (the VALID home for "book N in this series"; NOT a `position` on the Book
+// node itself — see jsonld.ts's comments on both bookNode() and
+// seriesReadingOrder()).
+const members = memberBooks.map((b) => ({ id: bookId(b.slug), name: b.title, position: b.seriesPosition }));
+
+// Breadcrumb trail — matches the visible <Fragment slot="breadcrumbs"> below.
+const crumbs = [
+  { name: 'Home', url: pageUrl('/') },
+  { name: 'Series', url: pageUrl('/series') },
+  { name: series.name },
+];
 
 const pageGraph = graph([
-  seriesNode(series, memberIds, seriesAuthors),
-  // Minimal named stubs for each member book so hasPart's @ids resolve to
-  // *something* even on a standalone fetch of just this page's JSON-LD — the
-  // full Book node itself lives once on its own /books/<slug> page.
-  ...memberBooks.map((b) => namedStub(bookId(b.slug), b.title, 'Book')),
+  seriesNode(series, members, seriesAuthors),
+  seriesReadingOrder(series, members),
+  breadcrumbNode(crumbs),
 ]);
 
 const byline = seriesAuthors.map((a) => a.name).join(', ');
@@ -55,6 +64,13 @@ const shareImage = series.cover ?? memberBooks[0]?.cover;
   description={series.description}
   image={shareImage}
 >
+  <Fragment slot="breadcrumbs">
+    <a href="/">Home</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <a href="/series">Series</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">{series.name}</span>
+  </Fragment>
   <JsonLd graph={pageGraph} />
   <article>
     <h1>{series.name}</h1>
