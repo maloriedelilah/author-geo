@@ -340,6 +340,15 @@ section + section {
   margin-top: 2.5rem;
 }
 
+/* "Featured in" (themed hubs this book belongs to) sits below "If you like...".
+   Explicit margin for the same reason as .comps-section above: CompsBlock only
+   renders its <section> when comps.length > 0, so this can't always rely on
+   the generic "section + section" sibling rule having a <section> immediately
+   before it. */
+.hubs-section {
+  margin-top: 2.5rem;
+}
+
 .book-card .book-card-body {
   flex: 1;
   min-width: 0;
