@@ -9,6 +9,7 @@
 // on its own /books/<slug> page (DD-001), same as everywhere else book covers
 // are shown as clickable teasers.
 import { truncateWords } from '../lib/text';
+import { isFutureRelease } from '../lib/date';
 
 interface Props {
   slug: string;
@@ -17,19 +18,30 @@ interface Props {
   description: string;
   seriesPosition?: number;
   maxWords?: number;
+  // Optional: when supplied, a book whose datePublished is still in the
+  // future gets a PRE-ORDER badge after its title (see lib/date.ts's
+  // isFutureRelease — same derivation used for JSON-LD availability and the
+  // homepage's Latest release/Coming soon split, so this can never drift out
+  // of sync with those). Omit entirely on a listing that doesn't have/need
+  // book dates on hand.
+  datePublished?: Date;
 }
 const {
-  slug, title, cover, description, seriesPosition, maxWords = 70,
+  slug, title, cover, description, seriesPosition, maxWords = 70, datePublished,
 } = Astro.props as Props;
 
 const { text: blurb, truncated } = truncateWords(description, maxWords);
+const isPreorder = datePublished ? isFutureRelease(datePublished) : false;
 ---
 <li class="book-list-item">
   <a class="cover-link" href={`/books/${slug}`} aria-hidden="true" tabindex="-1">
     <img class="book-thumb" src={cover} alt="" />
   </a>
   <div class="book-list-item-body">
-    <h3><a href={`/books/${slug}`}>{title}</a></h3>
+    <h3>
+      <a href={`/books/${slug}`}>{title}</a>
+      {isPreorder && <span class="preorder-badge">Pre-order</span>}
+    </h3>
     {seriesPosition != null && <p class="book-number">Book {seriesPosition}</p>}
     <p class="book-blurb">{blurb}{truncated && <> <a href={`/books/${slug}`}>more</a></>}</p>
   </div>

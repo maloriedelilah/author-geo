@@ -8,3 +8,16 @@
 export function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'long', timeZone: 'UTC' }).format(date);
 }
+
+// Single source of truth for "is this a preorder" across the whole site: a
+// book with a `datePublished` in the future IS a preorder, full stop — no
+// separate boolean field to keep in sync in content.config.ts. This drives
+// three independent things that must never drift from each other:
+//   1. jsonld.ts's Offer.availability (PreOrder vs InStock)
+//   2. the homepage's Latest release / Coming soon split + hero slideshow
+//   3. the PRE-ORDER badge on series listings (BookListItem) and book detail
+// Once the authored date passes and the site rebuilds, a book automatically
+// flips to "released" everywhere at once — no manual toggle to remember.
+export function isFutureRelease(date: Date, now: Date = new Date()): boolean {
+  return date.getTime() > now.getTime();
+}
