@@ -90,6 +90,7 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
   title={primaryAuthor?.name ?? 'Home'}
   description={primaryAuthor?.bio}
   image={latestRelease?.cover}
+  imageAlt={latestRelease ? `Cover of ${latestRelease.title}` : undefined}
 >
   <h1 class="visually-hidden">{primaryAuthor?.name ?? 'Home'}</h1>
 
@@ -113,7 +114,7 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
               {memberBooks.map((b) => (
                 <li>
                   <a href={`/books/${b.slug}`}>{b.title}</a>
-                  {isFutureRelease(b.datePublished, now) && <span class="preorder-badge">Pre-order</span>}
+                  {isFutureRelease(b.datePublished, now) && <>{' '}<span class="preorder-badge">Pre-order</span></>}
                 </li>
               ))}
             </ul>
@@ -125,7 +126,7 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
                   class="stacked-cover"
                   style={`z-index: ${3 - i};`}
                   src={b.cover}
-                  alt=""
+                  alt={`Cover of ${b.title}`}
                 />
               ))}
             </div>

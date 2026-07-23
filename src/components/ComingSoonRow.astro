@@ -32,7 +32,7 @@ const { books } = Astro.props as Props;
         {books.map((b) => (
           <li class="coming-soon-item">
             <a class="cover-link" href={`/books/${b.slug}`} aria-hidden="true" tabindex="-1">
-              <img class="coming-soon-cover" src={b.cover} alt="" />
+              <img class="coming-soon-cover" src={b.cover} alt={`Cover of ${b.title}`} />
             </a>
             <h3><a href={`/books/${b.slug}`}>{b.title}</a></h3>
             {b.seriesName && b.seriesSlug && b.seriesPosition != null && (

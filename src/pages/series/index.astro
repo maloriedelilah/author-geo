@@ -26,13 +26,20 @@ const seriesWithBooks = seriesList.map((s) => ({
 // This is a listing page, not any one series' own page — a representative
 // cover (first series' cover, else its first book's) reads better on a
 // shared link than falling all the way back to the author's own photo.
-const shareImage = seriesWithBooks[0]?.series.cover ?? seriesWithBooks[0]?.books[0]?.cover;
+// shareImageAlt tracks shareImage's own fallback exactly (never the page
+// title — see Base.astro's `imageAlt` doc) so they can't describe different
+// images.
+const firstSeries = seriesWithBooks[0];
+const shareImage = firstSeries?.series.cover ?? firstSeries?.books[0]?.cover;
+const shareImageAlt = firstSeries?.series.cover
+  ? `Cover art for ${firstSeries.series.name}`
+  : (firstSeries?.books[0] ? `Cover of ${firstSeries.books[0].title}` : undefined);
 
 const pageGraph = graph([
   breadcrumbNode([{ name: 'Home', url: pageUrl('/') }, { name: 'Series' }]),
 ]);
 ---
-<Base title="Series" description="All series" image={shareImage}>
+<Base title="Series" description="All series" image={shareImage} imageAlt={shareImageAlt}>
   <Fragment slot="breadcrumbs">
     <a href="/">Home</a>
     <span class="sep" aria-hidden="true">/</span>

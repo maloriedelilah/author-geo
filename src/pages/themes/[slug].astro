@@ -6,7 +6,7 @@ import Base from '../../layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import CompsBlock from '../../components/CompsBlock.astro';
 import { FileSource } from '../../lib/sources/FileSource';
-import { hubGraph, breadcrumbNode, bookId, pageUrl, graph } from '../../lib/jsonld';
+import { hubPageExtra, hubId, breadcrumbNode, bookId, pageUrl, graph } from '../../lib/jsonld';
 
 const source = new FileSource();
 
@@ -30,12 +30,24 @@ const members = memberBooks.map((b) => ({ id: bookId(b.slug), name: b.title }));
 
 // No standalone "Themes" index page exists to link as an intermediate crumb
 // (Tier-1 scope), so the trail goes straight from Home to this theme.
+//
+// NOTE (fixed 2026-07-23): this page's own node is now Base.astro's per-page
+// node (typed CollectionPage via `pageType`, below) — NOT a second, separate
+// node emitted here. Two nodes for one URL (the old plain WebPage Base.astro
+// always added, PLUS this page's own full CollectionPage) was a genuine
+// contradiction (same name/description asserted twice by two different
+// entities for the one page) — see jsonld.ts's hubPageExtra() doc comment.
 const pageGraph = graph([
-  hubGraph(hub, members),
   breadcrumbNode([{ name: 'Home', url: pageUrl('/') }, { name: hub.name }]),
 ]);
 ---
-<Base title={hub.name} description={hub.description}>
+<Base
+  title={hub.name}
+  description={hub.description}
+  pageType="CollectionPage"
+  pageId={hubId(hub.slug)}
+  pageExtra={hubPageExtra(hub, members)}
+>
   <Fragment slot="breadcrumbs">
     <a href="/">Home</a>
     <span class="sep" aria-hidden="true">/</span>

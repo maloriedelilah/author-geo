@@ -103,7 +103,7 @@ Co-authors each get their own file here.
 | `alternateName` | | Array of pen names / initials, e.g. `["S. Voss"]`. |
 | `bio` | ✅ | Prose bio; also feeds the About page and the (truncated) homepage blurb. |
 | `photo` | | Path to an image, e.g. `./sera.jpg`. Optional. |
-| `url` | ✅ | Your canonical author URL (usually your site root). |
+| `url` | ✅ | Kept for backward compatibility, but **not currently used anywhere in generated output** (fixed 2026-07-23 — see rule 12 in [For developers](#for-developers--ai-editors)): the schema.org `Person.url` is now always the author's own canonical `/about` page, derived by the engine, not read from this field. Nothing else on the site renders it either. Safe to leave as-is or ignore. |
 | `sameAs` | | Array of URLs that disambiguate you: Wikipedia/Wikidata, Goodreads author page, socials. Strongly recommended for GEO. |
 | `email` | | Optional contact email. |
 
@@ -691,6 +691,59 @@ vocabulary — see the gate's own header comment), all now fixed at the source:*
   index) and `seriesReadingOrder()` (an `ItemList`/`ListItem` expressing
   reading order validly, replacing the invalid `Book.position`) — rule 9.
 
+**A second review pass (2026-07-23, same day) caught a further batch, all now
+fixed at the source too:**
+- The `/events` page emitted a second, empty `{"@graph": []}` JSON-LD block
+  even when its own body correctly said "No upcoming events" — a structured
+  data block should never assert nothing while claiming to describe
+  something. Fixed: the block is omitted entirely when there are no events,
+  matching how `HeroSlideshow`/`ComingSoonRow` already render nothing at all
+  when they have nothing to show.
+- Theme pages carried **two** page-entity nodes for one URL — the generic
+  `WebPage` node every page gets, and the hub's own `CollectionPage` node —
+  both asserting the same `name`/`description`. Since `CollectionPage`
+  **is-a** `WebPage` in schema.org's own hierarchy, this was the exact same
+  "one entity, two sets of facts" contradiction as the old `WebSite.name` bug,
+  just relocated onto a different node pair. Fixed: a hub page's own node is
+  now `Base.astro`'s per-page node, typed `CollectionPage` instead of the
+  default `WebPage` (rule 10).
+- Cover images in **listing/carousel** contexts (`BookListItem`,
+  `HeroSlideshow`, `ComingSoonRow`, the homepage's series cover stack) had
+  empty `alt=""` — book/series detail pages already did this correctly
+  (`alt="Cover of <title>"`); the listing components just hadn't been brought
+  up to the same standard. Fixed across all four.
+- The `Pre-order` badge was concatenating directly onto the adjacent heading
+  text with no separator (`Tanis Richards: AgentPre-order`) on three
+  headings (`BookListItem`, `HeroSlideshow`, the book detail page's `h1`) —
+  Astro's compiler collapses the whitespace between the title expression and
+  the badge's own `{...}` expression, so an explicit `{' '}` text node is
+  needed. Fixed in all three, plus one non-heading occurrence on the
+  homepage's series list found the same way while in there.
+- **`og:image:alt` / `twitter:image:alt` now describe the image**, not the
+  page — they were bound to the page `title` on every page (correct-by-luck
+  only on a book's own page, where the title happens to include the book
+  name; wrong everywhere else, e.g. the homepage's image is a book cover but
+  its title is the author's name). Fixed via a new `imageAlt` prop on
+  `<Base>`, resolved in lockstep with the `image` prop it describes (rule 12).
+- `Person.url` and `WebSite.url` were the only two `url`/`@id` values left
+  without the trailing slash every other one already has (rule 8) —
+  `WebSite.url` now goes through `pageUrl()` like everything else. Beyond the
+  slash, `Person.url` was also pointing at the bare site root rather than the
+  author's own canonical page — now derived as `/about` (this site's
+  canonical `Person` home, per DD-001), never read from authored content
+  (rule 12 in [For developers](#for-developers--ai-editors)).
+- **`seriesPosition: 0.5`** (encoding "this is a prequel" as a fractional
+  reading-order slot) would silently produce a `ListItem.position` no
+  ordering consumer can use, and could invalidate the whole reading-order
+  `ItemList` in a strict validator — schema.org's own reading-order signal is
+  exactly what fan-out sub-queries ("what order should I read this series
+  in?") rely on. The content schema now **requires an integer** for
+  `seriesPosition`, failing the build immediately with a clear message
+  rather than shipping a fractional value that degrades silently (rule 13).
+  A prequel that reads before book 1 should use `seriesPosition: 0` — an
+  integer that's still correctly "before 1" without renumbering every other
+  book in the series.
+
 ### Cross-page identity gate — `npm run validate:crossid`
 
 The gate above (`validate-jsonld.mjs`) checks **references within one page** —
@@ -810,8 +863,10 @@ src/
     jsonld.ts            # THE ENGINE: builds the schema.org @graph (nodes + named stubs)
     leads/               # MailerLite / EmailOctopus adapters (Tier 2)
   layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub) AND a
-                         #   per-page WebPage node (title/description, isPartOf -> WebSite);
-                         #   wraps every page in Header/Footer, applies theme.mode/accent
+                         #   per-page node (title/description, isPartOf -> WebSite; WebPage
+                         #   by default, or a more specific @type like CollectionPage via
+                         #   pageType/pageId/pageExtra -- see rule 10); wraps every page in
+                         #   Header/Footer, applies theme.mode/accent
   components/            # JsonLd, SubscribeForm, ContactForm, CompsBlock, Header, Footer
   pages/                 # route templates: index, about, books/[slug], series/[slug],
                          #   series/index (nav landing page), themes/[slug], events/index,
@@ -880,10 +935,55 @@ failure the build won't catch — run the gate):
    `ItemList`/`ListItem` node that wraps a **named stub** reference — see
    `seriesReadingOrder()` (a book's position within its series) and
    `breadcrumbNode()` (a page's position in the breadcrumb trail) in
-   `jsonld.ts`, and `hubGraph()`'s `mainEntity`, which already used this
+   `jsonld.ts`, and `hubPageExtra()`'s `mainEntity`, which already used this
    pattern correctly. When you need to express an order or rank of
    something, reach for this pattern rather than bolting a `position` field
    onto whatever node feels closest.
+
+10. **A page gets exactly ONE node describing the page itself, never two.**
+    `Base.astro`'s per-page node is `WebPage` by default — but if a page's
+    real subject is a more specific kind of page (e.g. a themed hub is a
+    `CollectionPage`, which **is-a** `WebPage` in schema.org's own hierarchy),
+    that page must override the per-page node's own `@type`/`@id`/extra
+    properties (`pageType`/`pageId`/`pageExtra` props) rather than ALSO
+    emitting its own separate full node. Two nodes asserting the same
+    `name`/`description` for the one URL is the same contradiction as rule 6,
+    just between a page's generic and specific representations instead of
+    between `WebSite` and `WebPage`. See `hubPageExtra()` in `jsonld.ts` and
+    `themes/[slug].astro`.
+
+11. **Never emit a structured-data block with nothing in it.** A
+    `{"@graph": []}` (or any node with no real content) asserts nothing while
+    implying there's something to read — if a page has nothing to describe
+    (e.g. `/events` with zero events), omit the `<JsonLd>` block entirely,
+    the same way `HeroSlideshow`/`ComingSoonRow` already render nothing at
+    all rather than an empty shell.
+
+12. **Every image reference — `alt` text, `og:image:alt`/`twitter:image:alt`,
+    and `Person.url`/similar identity fields — must describe the actual thing
+    it's attached to, resolved from the SAME source as whatever it sits next
+    to, never a generic fallback that happens to be convenient.** Concretely:
+    an `<img>` in a listing/carousel needs its own real `alt` (`"Cover of
+    <title>"`), not `alt=""`, even when a visible title link sits right next
+    to it. An OG/Twitter image's `alt` describes the image (pass `imageAlt`
+    alongside `image` to `<Base>`) — never reuse the page `title`, which
+    describes the page, not necessarily the picture (the homepage's `title`
+    is the author's name; its image is a book cover — those are not the same
+    fact). `Person.url` is this site's own `/about` page (`pageUrl('/about')`
+    in `authorNode()`), derived by the engine — not read from the author
+    content collection's own `url` field, which has no other job on the site
+    and was the one value not conforming to this rule.
+
+13. **Any authored value that becomes a `ListItem.position` (or is compared
+    for ordering) must be validated as a genuine integer at the content-schema
+    layer**, the same discipline already applied to `price`/`currency` (see
+    the edition schema). `seriesPosition: z.number().int(...)` in
+    `content.config.ts` — a fractional "placeholder" position (e.g. `0.5` for
+    a prequel) builds fine right up until a strict validator rejects the
+    whole `ItemList` it lands in, silently costing you the reading-order
+    signal the node exists to provide. If something genuinely reads before
+    position 1, give it position `0` — schema.org doesn't require lists to
+    start at 1 — rather than inventing a non-integer slot.
 
 **When you pull upstream:** engine changes land in `src/` (outside `src/content/`);
 your content stays untouched. If an upstream schema change requires a content

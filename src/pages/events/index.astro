@@ -12,10 +12,16 @@ const source = new FileSource();
 const events = await source.getEvents();
 const sorted = [...events].sort((a, b) => a.startDate.getTime() - b.startDate.getTime());
 
-const pageGraph = graph(sorted.map((e) => eventNode(e)));
+// null (not an empty graph) when there are no events (fixed 2026-07-23): a
+// `{"@graph": []}` block asserts nothing, describes nothing, and was being
+// emitted unconditionally even while the page body correctly said "No
+// upcoming events." -- structured data should describe what's actually on
+// the page, the same discipline already applied to ComingSoonRow/
+// HeroSlideshow (render nothing at all rather than an empty shell).
+const pageGraph = sorted.length > 0 ? graph(sorted.map((e) => eventNode(e))) : null;
 ---
 <Base title="Events" description="Upcoming appearances and events.">
-  <JsonLd graph={pageGraph} />
+  {pageGraph && <JsonLd graph={pageGraph} />}
   <article>
     <h1>Events</h1>
     {sorted.length === 0 && <p>No upcoming events.</p>}
