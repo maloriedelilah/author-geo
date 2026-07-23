@@ -20,8 +20,25 @@ import '../styles/theme.css';
 interface Props {
   title: string;
   description?: string;
+  // Open Graph / Twitter Card image — a root-relative path (e.g. a book's
+  // `cover` or the author's `photo`, both already plain strings by the time
+  // they reach here — see FileSource.ts). Falls back to the primary author's
+  // photo when a page doesn't have anything more specific of its own (a book
+  // cover, a series cover, ...); omitted entirely if neither exists, since a
+  // missing og:image just means link previews render without a thumbnail
+  // rather than breaking.
+  image?: string;
+  // Open Graph type. 'book' unlocks the book: namespace props below (only
+  // meaningful for actual book pages) — everything else should stay the
+  // 'website' default. Doesn't affect Twitter Cards (they don't have a
+  // matching concept).
+  type?: 'website' | 'book' | 'profile';
+  // Only read when type === 'book'. Both optional and independent of each
+  // other — pass whichever the page actually has.
+  bookIsbn?: string;
+  bookReleaseDate?: Date;
 }
-const { title, description } = Astro.props as Props;
+const { title, description, image, type = 'website', bookIsbn, bookReleaseDate } = Astro.props as Props;
 
 const source = new FileSource();
 const authors = await source.getAuthors();
@@ -32,6 +49,12 @@ const primaryAuthor = authors[0];
 if (!primaryAuthor) {
   throw new Error('Base.astro: no author entry found in src/content/author — WebSite.publisher cannot be built');
 }
+
+// Resolve once here so every page gets a shareable image for free when it has
+// one to offer (its own, or the sitewide author-photo fallback) without every
+// page template having to duplicate this fallback logic itself.
+const ogImageSrc = image ?? primaryAuthor.photo;
+const ogImage = ogImageSrc ? new URL(ogImageSrc, Astro.site).toString() : undefined;
 
 const siteGraph = {
   '@context': 'https://schema.org',
@@ -54,6 +77,39 @@ const siteGraph = {
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={Astro.url.toString()} />
+
+    {/* Open Graph — every Facebook/Meta-ads link preview and share card reads
+        these; with none of them present the fallback is a bare gray link
+        card with no title/image at all. og:url uses the canonical URL above
+        so a share of a query-stringed link still attributes correctly. */}
+    <meta property="og:type" content={type === 'book' ? 'book' : type === 'profile' ? 'profile' : 'website'} />
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:url" content={Astro.url.toString()} />
+    <meta property="og:site_name" content={primaryAuthor.name} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    {ogImage && <meta property="og:image:alt" content={title} />}
+    {type === 'book' && bookIsbn && <meta property="book:isbn" content={bookIsbn} />}
+    {type === 'book' && bookReleaseDate && (
+      <meta property="book:release_date" content={bookReleaseDate.toISOString().slice(0, 10)} />
+    )}
+
+    {/* Twitter/X Cards — a separate spec from Open Graph (X does NOT reliably
+        fall back to og:* tags), so these are named/duplicated rather than
+        assumed. summary_large_image only when there's actually an image to
+        show large; summary otherwise so a text-only card isn't left mostly
+        blank. */}
+    <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+    <meta name="twitter:title" content={title} />
+    {description && <meta name="twitter:description" content={description} />}
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+    {siteConfig.social.twitterHandle && (
+      <meta
+        name="twitter:site"
+        content={siteConfig.social.twitterHandle.startsWith('@') ? siteConfig.social.twitterHandle : `@${siteConfig.social.twitterHandle}`}
+      />
+    )}
+
     <JsonLd graph={siteGraph} />
     {siteConfig.theme.accent && (
       <style set:html={`:root[data-theme="${siteConfig.theme.mode}"] { --accent: ${siteConfig.theme.accent}; }`} />
