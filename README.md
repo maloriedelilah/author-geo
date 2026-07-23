@@ -319,6 +319,22 @@ changing the fonts — see [Theming guide](#theming-guide) below.
   section on `/about`. It's also already emitted as the schema.org `Person`'s
   `image` (`src/lib/jsonld.ts`) — no extra config needed for structured data,
   just add the `photo` field to the author's frontmatter.
+- **The book detail page** shows the release date under the cover (formatted in
+  UTC so the authored `YYYY-MM-DD` never rolls back a day depending on
+  build/viewer timezone), and — for a book that belongs to a series — a
+  "Book N of *Series Name*" line under the title, linking to that series' page.
+  "Get the book" sits under the blurb, to the right of the cover; "If you
+  like..." stays below the whole card. `.get-book-section` and `.comps-section`
+  are separate classes if you want to style either independently.
+- **The homepage's series teaser** shows a small overlapping "fan" of the
+  series' first 3 covers to the right of its blurb/book list (decorative —
+  the real links are in the list to the left), folding below the text on
+  narrow screens.
+- **A series' own blurb** (`.series-description`, wherever a series is
+  introduced) and **a listed book's short teaser blurb** (`.book-blurb`, in
+  the series-listing rows above) are deliberately separate CSS classes — the
+  book blurb ships ~25% smaller by default since it sits next to a small
+  thumbnail, but the two can be sized/styled independently either way.
 
 ### 5. Secrets — `.env` (Tier 2)
 

@@ -270,6 +270,47 @@ section + section {
   display: block;
 }
 
+/* Book detail page only: cover + its release date, stacked, sitting to the
+   left of the title/blurb/get-the-book column. (The homepage/listing cards
+   use a bare .cover-link with no caption, so this is scoped to book-card's
+   own cover wrapper rather than added to .cover-link generally.) */
+.book-card .cover-col {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.release-date {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+  text-align: center;
+}
+
+.series-info {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: -0.4em 0 0.75em;
+}
+
+/* "Get the book" (editions) is nested inside .book-card-body now, so it sits
+   under the blurb/byline to the right of the cover rather than below the
+   whole card. Its own class per request, and explicit spacing since the
+   generic "section + section" rule only fires between adjacent <section>
+   siblings, which this no longer is (its previous sibling is a <p>). */
+.get-book-section {
+  margin-top: 1.5rem;
+}
+
+/* "If you like..." (comps) stays below the whole book-card, but that's a
+   <div> not a <section>, so it also needs explicit spacing rather than
+   relying on the adjacent-section rule. */
+.comps-section {
+  margin-top: 2.5rem;
+}
+
 .book-card .book-card-body {
   flex: 1;
   min-width: 0;
@@ -327,6 +368,21 @@ section + section {
   margin: -0.3em 0 0.5em;
 }
 
+/* BookListItem's short per-book blurb — deliberately its OWN class (not
+   reusing .series-description below) so a series' own description and a
+   listed book's teaser blurb can be sized/styled independently. ~25% smaller
+   than body text, since it's secondary teaser copy next to a small thumbnail. */
+.book-blurb {
+  font-size: 0.75rem;
+}
+
+/* The series' own description text, wherever a series is introduced (series
+   index cards, a series' own detail page, the homepage's series teaser) —
+   kept as its own class distinct from .book-blurb above for the same reason. */
+.series-description {
+  margin: 0 0 0.75em;
+}
+
 /* Higher specificity than ".card img" (which the series-list <section class="card">
    wrapper otherwise matches at equal-or-higher specificity, silently overriding this
    150px cap with the .cover rule's 400px) — scope to the list wrapper so this wins
@@ -343,6 +399,58 @@ section + section {
   .book-thumb-list li,
   .book-list-item {
     flex-direction: column;
+  }
+}
+
+/* --- Homepage series teaser (text left, overlapping cover fan right) ------- */
+/* index.astro's "Series" section: each series' blurb/book-list on the left,
+   a small overlapping "fan" of its first 3 covers on the right — decorative
+   only (aria-hidden; the book list to the left already carries the real
+   links), so it's fine if a series has fewer than 3 books. Folds to a single
+   stacked column on narrow screens, same convention as .book-card. */
+
+.series-card {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.series-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.series-card-body > :first-child {
+  margin-top: 0;
+}
+
+.series-covers-stack {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.stacked-cover {
+  position: relative;
+  max-height: 120px;
+  width: auto;
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  border: 3px solid var(--bg-elevated);
+}
+
+.stacked-cover + .stacked-cover {
+  margin-left: -2.75rem;
+}
+
+@media (max-width: 640px) {
+  .series-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .series-covers-stack {
+    margin-top: 1rem;
   }
 }
 

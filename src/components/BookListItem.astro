@@ -31,6 +31,6 @@ const { text: blurb, truncated } = truncateWords(description, maxWords);
   <div class="book-list-item-body">
     <h3><a href={`/books/${slug}`}>{title}</a></h3>
     {seriesPosition != null && <p class="book-number">Book {seriesPosition}</p>}
-    <p>{blurb}{truncated && <> <a href={`/books/${slug}`}>more</a></>}</p>
+    <p class="book-blurb">{blurb}{truncated && <> <a href={`/books/${slug}`}>more</a></>}</p>
   </div>
 </li>

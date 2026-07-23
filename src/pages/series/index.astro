@@ -27,7 +27,7 @@ const seriesWithBooks = seriesList.map((s) => ({
   {seriesWithBooks.map(({ series, books: memberBooks }) => (
     <section class="card" aria-labelledby={`series-${series.slug}`}>
       <h2 id={`series-${series.slug}`}><a href={`/series/${series.slug}`}>{series.name}</a></h2>
-      <p>{series.description}</p>
+      <p class="series-description">{series.description}</p>
       <ul class="book-thumb-list">
         {memberBooks.map((b) => (
           <BookListItem

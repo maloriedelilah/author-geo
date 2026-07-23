@@ -11,11 +11,12 @@ import type { Comp } from '../lib/ContentSource';
 interface Props {
   comps: Comp[];
   title?: string;
+  class?: string;
 }
-const { comps, title = 'If you like...' } = Astro.props as Props;
+const { comps, title = 'If you like...', class: className = 'comps-section' } = Astro.props as Props;
 ---
 {comps.length > 0 && (
-  <section aria-label={title}>
+  <section aria-label={title} class={className}>
     <h2>{title}</h2>
     <ul>
       {comps.map((c) => (
