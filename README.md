@@ -174,7 +174,18 @@ a book quietly becomes "released" like any other, with no other edits needed.
 
 What changes automatically while `datePublished` is still in the future:
 - **JSON-LD**: every edition's `Offer.availability` emits
-  `https://schema.org/PreOrder` instead of `https://schema.org/InStock`.
+  `https://schema.org/PreOrder` instead of `https://schema.org/InStock`, and
+  each `Offer` also gets `availabilityStarts` set to that same
+  `datePublished` date (added 2026-07-23, reviewer finding). It looks
+  redundant next to the Book's own `datePublished` -- same date, different
+  node -- but it isn't: `availabilityStarts` describes *the Offer's own*
+  availability window (when this particular purchase channel starts being
+  deliverable), which is exactly what Google Merchant Center's required
+  `availability_date` attribute for preorder/backorder listings maps onto.
+  A shopping consumer checks the Offer for this, not the Book. Only emitted
+  while the offer is actually a preorder -- it disappears automatically the
+  moment `isFutureRelease` flips false, since an already-available Offer has
+  no future "start" left to declare.
 - **"Latest release"** on the homepage skips it — a preorder can never
   accidentally claim that slot ahead of an already-released book.
 - **Hero slideshow** on the homepage gets a slide for it (soonest release
