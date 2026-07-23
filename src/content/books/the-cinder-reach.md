@@ -19,11 +19,13 @@ editions:
     url: "https://example.com/buy/the-cinder-reach-ebook"
     price: "5.99"
     currency: "USD"
+    asin: "B0EXAMPLE04"
   - format: "paperback"
     retailer: "Amazon"
     url: "https://example.com/buy/the-cinder-reach-paperback"
     price: "17.99"
     currency: "USD"
+    isbn: "978-0-00-000000-4"
 comps:
   - name: "Salvage-punk thrillers"
     hook: "scavenger-crew-finds-more-than-scrap tension in the vein of Alastair Reynolds' derelict-ship stories"

@@ -6,7 +6,7 @@
 // canonical full node lives once at its own home (the /about page); everywhere else
 // it is referenced by @id + slug. `slug` on Author drives that canonical @id.
 export interface Author { slug: string; name: string; bio: string; url: string; sameAs: string[]; photo?: string; alternateName?: string[]; email?: string; }
-export interface Edition { format: string; isbn?: string; asin?: string; retailer: string; url: string; price?: string; currency: string; }
+export interface Edition { format: string; isbn?: string; asin?: string; sku?: string; retailer: string; url: string; price?: string; currency: string; }
 export interface Comp { name: string; hook: string; sameAs?: string[]; }
 export interface Book { title: string; subtitle?: string; slug: string; description: string; cover: string; datePublished: Date; language: string; genres: string[]; editions: Edition[]; comps: Comp[]; authorSlugs: string[]; seriesSlug?: string; seriesPosition?: number; }
 export interface Series { name: string; slug: string; description: string; cover?: string; comps: Comp[]; authorSlugs: string[]; }

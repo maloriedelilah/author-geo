@@ -18,11 +18,13 @@ editions:
     url: "https://example.com/buy/signal-and-ash-ebook"
     price: "5.99"
     currency: "USD"
+    asin: "B0EXAMPLE03"
   - format: "paperback"
     retailer: "Amazon"
     url: "https://example.com/buy/signal-and-ash-paperback"
     price: "17.99"
     currency: "USD"
+    isbn: "978-0-00-000000-3"
 comps:
   - name: "Contact"
     hook: "a lone scientist deciphering an alien signal against institutional distrust"

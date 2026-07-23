@@ -5,6 +5,11 @@ const edition = z.object({
   format: z.enum(['ebook', 'paperback', 'hardcover', 'audiobook']),
   isbn: z.string().optional(),
   asin: z.string().optional(),
+  // Catch-all for retailers that use neither ISBN nor ASIN (Kobo, Apple
+  // Books, Google Play, direct-sale/D2D-style storefronts each mint their
+  // own store-specific product id). Maps to schema.org's own generic
+  // Offer.sku — the standard "merchant-specific identifier" property.
+  sku: z.string().optional(),
   retailer: z.string(),          // e.g. 'Amazon', 'Kobo', 'Apple Books'
   url: z.string().url(),          // buy link lives on the EDITION, not the work
   // REQUIRED, not optional. schema.org/Offer needs BOTH `price` and
@@ -15,7 +20,20 @@ const edition = z.object({
   // (currency symbols, commas, trailing text) — plain decimal only, e.g. "17.99".
   price: z.string().regex(/^\d+(\.\d{1,2})?$/, 'price must be a plain decimal number as a string, e.g. "17.99" (no currency symbols or commas)'),
   currency: z.string().regex(/^[A-Z]{3}$/, 'currency must be a 3-letter ISO 4217 code, e.g. "USD"').default('USD'),
-});
+}).refine(
+  // Every edition needs AT LEAST ONE canonical identifier. Without one, its
+  // Offer/workExample node has no stable id a shopping/answer-engine
+  // consumer can use to match "this exact edition" across sources — the
+  // same silent-hole shape as the missing-price bug (structurally valid
+  // JSON-LD, just useless for the thing it exists to enable). Deliberately
+  // NOT requiring isbn specifically: many indie ebook editions (KDP-only,
+  // no print run) never get assigned an ISBN at all — asin (Amazon) or sku
+  // (any other storefront's own product id) are equally valid canonical
+  // identifiers for THAT edition. Reviewer finding 2026-07-23: ebook
+  // editions in particular were shipping with none of the three set.
+  (e) => Boolean(e.isbn || e.asin || e.sku),
+  { message: 'edition needs at least one canonical identifier (isbn, asin, or sku) — an ebook with no ISBN should set asin (Amazon/KDP) or sku (any other storefront\'s own product id) instead of shipping with none' },
+);
 
 const comp = z.object({
   name: z.string(),
