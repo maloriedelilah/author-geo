@@ -129,8 +129,9 @@ editions:                                # ARRAY, min 1 — at least one buy lin
     url: "https://.../buy/ebook"         #   the BUY LINK lives on the edition (-> schema Offer.url), NOT on the book (DD-005)
     price: "4.99"                        #   REQUIRED — plain decimal string, no currency symbols/commas
     currency: "USD"                      #   default USD — must be a 3-letter ISO 4217 code
-    isbn: "978..."                       #   optional
-    asin: "B0..."                        #   optional
+    isbn: "978..."                       #   optional* (see below)
+    asin: "B0..."                        #   optional*
+    sku: "..."                           #   optional* — *at least ONE of isbn/asin/sku is required
 comps:                                   # optional — "comparable titles", rendered inline on the book page
   - name: "The Expanse"
     hook: "found-family crew under existential ship-systems pressure"  # REQUIRED, min 20 chars — never a bare name
@@ -157,6 +158,17 @@ Two rules the schema enforces that matter for structured data:
   missing price fails `npm run build` immediately with a message naming the
   exact book/edition/field, rather than shipping a book that can never surface
   in Shopping results.
+- **Every edition also requires at least one of `isbn`, `asin`, or `sku`**
+  (reviewer finding 2026-07-23) — without a canonical identifier, that
+  edition's `Offer` can't be matched to "this exact product" by a shopping or
+  answer-engine consumer, the same silent-hole shape as the missing-price
+  bug. You don't need all three, and you don't need `isbn` specifically —
+  plenty of indie ebook-only editions never get an ISBN assigned at all.
+  Use whichever your retailer actually gives you: `isbn` for print/most
+  ebook retailers, `asin` for Amazon/KDP, `sku` for anything else (Kobo,
+  Apple Books, direct-sale storefronts) with its own product id. A missing
+  edition-level identifier fails `npm run build` immediately, same as a
+  missing price.
 
 > **Want to see every field in one place?** `src/content/books/the-ember-horizon/`
 > is a deliberately maximal example: all four edition formats, both `isbn` and
@@ -995,6 +1007,24 @@ failure the build won't catch — run the gate):
     signal the node exists to provide. If something genuinely reads before
     position 1, give it position `0` — schema.org doesn't require lists to
     start at 1 — rather than inventing a non-integer slot.
+
+14. **Every edition needs at least one canonical identifier** (`isbn`, `asin`,
+    or `sku`) — enforced by a schema `.refine()` on the edition object, same
+    discipline as required `price` (reviewer finding 2026-07-23: ebook
+    editions in particular were shipping with none of the three, leaving
+    that `Offer` with no stable identity a shopping/answer-engine consumer
+    can match). Don't assume `isbn` alone is enough to require: many indie
+    ebook-only editions never get an ISBN assigned at all, so the schema
+    accepts `asin` (Amazon/KDP) or `sku` (any other storefront's own
+    product id) as equally valid alternatives. Also note where each one is
+    emitted in JSON-LD, since they're NOT interchangeable there: `isbn` is a
+    native `Book` property (lives on the `workExample` node), while `asin`
+    and `sku` are `Offer`/`Product` properties per schema.org's own
+    domain — they belong on the `offers` node, never on the Book. (A real,
+    live bug existed here before this fix: `asin` was defined in the schema
+    and authored in real content since PR #22, but `jsonld.ts` never
+    actually emitted it anywhere — it was silently dropped from every page's
+    structured data.)
 
 **When you pull upstream:** engine changes land in `src/` (outside `src/content/`);
 your content stays untouched. If an upstream schema change requires a content

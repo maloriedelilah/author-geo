@@ -20,11 +20,13 @@ editions:
     url: "https://example.com/buy/the-long-dark-between-ebook"
     price: "4.99"
     currency: "USD"
+    asin: "B0EXAMPLE05"
   - format: "paperback"
     retailer: "Amazon"
     url: "https://example.com/buy/the-long-dark-between-paperback"
     price: "16.99"
     currency: "USD"
+    isbn: "978-0-00-000000-5"
 comps:
   - name: "The Expanse"
     hook: "similar found-family crew dynamics under existential ship-systems pressure"

@@ -116,12 +116,23 @@ export function bookNode(
     // ItemList/ListItem, emitted once on the series' own page.
     ...(isPartOf.length > 0 ? { isPartOf } : {}),
     workExample: b.editions.map((e) => ({ '@type': 'Book', bookFormat: e.format,
+      // isbn lives on the Book/workExample node — schema.org/Book has its own
+      // native `isbn` property. asin/sku do NOT belong here (fixed
+      // 2026-07-23): schema.org/asin's domain is Demand/Offer/Product, never
+      // CreativeWork/Book, and `sku` is likewise an Offer/Product property —
+      // both are emitted on the `offers` node below instead. Previously asin
+      // was defined in the content schema and authored in real content
+      // (the-ember-horizon's ebook/audiobook editions) but never actually
+      // reached the JSON-LD at all — this was a real, live silent-drop bug,
+      // not just a missing feature.
       isbn: e.isbn, potentialAction: undefined,
       // Preorder support: derived from datePublished, never a separate field
       // (see isFutureRelease's doc comment in lib/date.ts) — a future-dated
       // book automatically emits PreOrder here and flips to InStock on its
       // own the moment the site rebuilds after that date passes.
       offers: { '@type': 'Offer', url: e.url, price: e.price, priceCurrency: e.currency,
+        ...(e.asin ? { asin: e.asin } : {}),
+        ...(e.sku ? { sku: e.sku } : {}),
         availability: isFutureRelease(b.datePublished)
           ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
         // availabilityStarts: the OFFER's own availability window, distinct
