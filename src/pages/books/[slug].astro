@@ -48,8 +48,18 @@ const pageGraph = graph([
 
 const byline = bookAuthors.map((a) => a.name).join(', ');
 const isPreorder = isFutureRelease(book.datePublished);
+// og:type=book's book:isbn wants a SINGLE ISBN; isbn lives per-edition (a book
+// can have several formats/retailers), so use the first edition that has one.
+const bookIsbn = book.editions.find((e) => e.isbn)?.isbn;
 ---
-<Base title={`${book.title} — ${byline}`} description={book.description}>
+<Base
+  title={`${book.title} — ${byline}`}
+  description={book.description}
+  image={book.cover}
+  type="book"
+  bookIsbn={bookIsbn}
+  bookReleaseDate={book.datePublished}
+>
   {series && (
     <Fragment slot="breadcrumbs">
       <a href={`/series/${series.slug}`}>{series.name}</a>

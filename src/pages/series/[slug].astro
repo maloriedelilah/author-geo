@@ -46,8 +46,15 @@ const pageGraph = graph([
 ]);
 
 const byline = seriesAuthors.map((a) => a.name).join(', ');
+// Prefer the series' own cover; fall back to its first book's so a share of
+// this page still gets a real thumbnail even for series without cover art.
+const shareImage = series.cover ?? memberBooks[0]?.cover;
 ---
-<Base title={`${series.name} — ${byline}`} description={series.description}>
+<Base
+  title={`${series.name} — ${byline}`}
+  description={series.description}
+  image={shareImage}
+>
   <JsonLd graph={pageGraph} />
   <article>
     <h1>{series.name}</h1>

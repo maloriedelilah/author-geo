@@ -82,4 +82,14 @@ export const siteConfig = {
     doubleOptIn: true,        // config option — single vs double opt-in
     groups: [] as string[],
   },
+
+  // --- Social sharing --------------------------------------------------
+  // Purely cosmetic attribution for Twitter/X's `twitter:site` meta tag on
+  // link-preview cards (see Base.astro's OG/Twitter Card block). Optional —
+  // Open Graph and Twitter Card previews render correctly without it; this
+  // just adds "via @handle" credit on X. Include or omit the leading '@',
+  // either works.
+  social: {
+    twitterHandle: undefined as string | undefined,
+  },
 };

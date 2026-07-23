@@ -29,6 +29,7 @@ baked into every page.
 - [Adding your content](#adding-your-content) — the frontmatter contract
 - [Configuration](#configuration) — site URL, leads, theme/nav/footer
 - [SEO basics: robots.txt, sitemap, 404](#seo-basics-robotstxt-sitemap-404)
+- [Social sharing: Open Graph & Twitter Cards](#social-sharing-open-graph--twitter-cards)
 - [Theming guide](#theming-guide) — every CSS variable, what it controls, how to do a full palette swap
 - [Legal pages](#legal-pages-privacy--terms) — Privacy Policy & Terms of Use
 - [Contact form](#contact-form) — the static form + how to wire it to actually send email
@@ -436,6 +437,41 @@ handled automatically — nothing to configure beyond the site URL above:
   Wrangler config needed. The newer "Workers with static assets" product
   requires an explicit `not_found_handling` setting for the same behavior, but
   that's a different deploy target than the one this repo uses.)
+
+---
+
+## Social sharing: Open Graph & Twitter Cards
+
+Every page emits Open Graph and Twitter Card meta tags (`src/layouts/Base.astro`)
+— without these, a link shared on Facebook/Meta ads, X, Slack, iMessage, etc.
+falls back to a bare gray card with no title, description, or image at all,
+which is exactly the gap this closes. Nothing to configure beyond content you
+already have:
+
+- **`og:title` / `og:description` / `twitter:title` / `twitter:description`**
+  come straight from the same `title`/`description` every page already passes
+  to `<Base>` — no duplicate copy to maintain.
+- **`og:image` / `twitter:image`** resolve to an absolute URL from whichever
+  image is most relevant to that page: a book's own `cover` on its detail
+  page, a series' `cover` (or its first book's, if the series has none) on
+  series pages, the latest release's cover on the homepage — falling back to
+  the primary author's `photo` (from `src/content/author`) everywhere else. If
+  neither exists yet (e.g. a fresh clone with no author photo set), the image
+  tags are simply omitted — previews still work, just without a thumbnail.
+  `twitter:card` is `summary_large_image` when there's an image, `summary`
+  otherwise.
+- **`og:type`** is `book` on book detail pages (unlocking `book:isbn` and
+  `book:release_date` — read from the edition that has an ISBN, and the
+  book's own `datePublished`, respectively) and `website` everywhere else.
+- **`og:site_name`** is the primary author's name — this is a single-author
+  site template, so the "site" and the "author" are the same identity.
+- **`twitter:site`** (optional, "via @handle" credit on X card previews) reads
+  `siteConfig.social.twitterHandle` in `src/config.ts` — leave it `undefined`
+  to omit; nothing else depends on it.
+
+All of this lives in `Base.astro`'s `Props` (`image`, `type`, `bookIsbn`,
+`bookReleaseDate`) — a page template opts in by passing whichever of those
+it has; none are required.
 
 ---
 

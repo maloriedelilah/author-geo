@@ -20,8 +20,13 @@ const seriesWithBooks = seriesList.map((s) => ({
     .filter((b) => b.seriesSlug === s.slug)
     .sort((a, b) => (a.seriesPosition ?? 0) - (b.seriesPosition ?? 0)),
 }));
+
+// This is a listing page, not any one series' own page — a representative
+// cover (first series' cover, else its first book's) reads better on a
+// shared link than falling all the way back to the author's own photo.
+const shareImage = seriesWithBooks[0]?.series.cover ?? seriesWithBooks[0]?.books[0]?.cover;
 ---
-<Base title="Series" description="All series">
+<Base title="Series" description="All series" image={shareImage}>
   <h1>Series</h1>
   {seriesWithBooks.length === 0 && <p>No series yet.</p>}
   {seriesWithBooks.map(({ series, books: memberBooks }) => (
