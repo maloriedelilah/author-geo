@@ -7,7 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "validate:ld": "node scripts/validate-jsonld.mjs"
+    "validate:ld": "node scripts/validate-jsonld.mjs",
+    "validate:crossid": "node scripts/validate-crossid.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14",
