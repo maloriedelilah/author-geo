@@ -123,7 +123,21 @@ export function bookNode(
       // own the moment the site rebuilds after that date passes.
       offers: { '@type': 'Offer', url: e.url, price: e.price, priceCurrency: e.currency,
         availability: isFutureRelease(b.datePublished)
-          ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock' } })) };
+          ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
+        // availabilityStarts: the OFFER's own availability window, distinct
+        // from Book.datePublished even though the two values are equal for
+        // a preorder (added 2026-07-23, reviewer finding). schema.org scopes
+        // this to the Offer, not the Book — it answers "when does THIS
+        // purchase channel become available for delivery", which a shopping
+        // consumer (Google Merchant's own required `availability_date`
+        // attribute for preorder/backorder listings maps directly to this)
+        // checks on the Offer itself rather than inferring from the work's
+        // own publication date. Only emitted while the offer is actually a
+        // preorder — once isFutureRelease flips false on rebuild, this key
+        // is correctly absent (an already-available Offer has no future
+        // "start" left to declare).
+        ...(isFutureRelease(b.datePublished)
+          ? { availabilityStarts: b.datePublished.toISOString().slice(0, 10) } : {}) } })) };
 }
 
 export function seriesNode(
