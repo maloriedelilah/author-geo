@@ -272,6 +272,17 @@ section + section {
   font-size: 0.9rem;
 }
 
+/* --- 404 page ------------------------------------------------------------- */
+
+.not-found {
+  padding: 2rem 0 3rem;
+  text-align: center;
+}
+
+.not-found p {
+  color: var(--text-muted);
+}
+
 /* --- Book cards (cover + title/blurb side by side) ------------------------- */
 /* Used on the homepage's featured-book card and the book detail page's hero.
    Cover on the left (capped via .cover above), title/description to the

@@ -10,7 +10,8 @@
     "validate:ld": "node scripts/validate-jsonld.mjs"
   },
   "dependencies": {
-    "astro": "^7",
-    "@astrojs/cloudflare": "^14"
+    "@astrojs/cloudflare": "^14",
+    "@astrojs/sitemap": "^3.7.3",
+    "astro": "^7"
   }
 }
