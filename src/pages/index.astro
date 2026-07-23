@@ -63,14 +63,28 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
     <section aria-label="Series">
       <h2>Series</h2>
       {seriesWithBooks.map(({ series, books: memberBooks }) => (
-        <article class="card">
-          <h3><a href={`/series/${series.slug}`}>{series.name}</a></h3>
-          <p>{series.description}</p>
-          <ul>
-            {memberBooks.map((b) => (
-              <li><a href={`/books/${b.slug}`}>{b.title}</a></li>
-            ))}
-          </ul>
+        <article class="card series-card">
+          <div class="series-card-body">
+            <h3><a href={`/series/${series.slug}`}>{series.name}</a></h3>
+            <p class="series-description">{series.description}</p>
+            <ul>
+              {memberBooks.map((b) => (
+                <li><a href={`/books/${b.slug}`}>{b.title}</a></li>
+              ))}
+            </ul>
+          </div>
+          {memberBooks.length > 0 && (
+            <div class="series-covers-stack" aria-hidden="true">
+              {memberBooks.slice(0, 3).map((b, i) => (
+                <img
+                  class="stacked-cover"
+                  style={`z-index: ${3 - i};`}
+                  src={b.cover}
+                  alt=""
+                />
+              ))}
+            </div>
+          )}
         </article>
       ))}
     </section>

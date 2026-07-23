@@ -52,7 +52,7 @@ const byline = seriesAuthors.map((a) => a.name).join(', ');
   <article>
     <h1>{series.name}</h1>
     {series.cover && <img class="cover" src={series.cover} alt={`Cover art for ${series.name}`} />}
-    <p>{series.description}</p>
+    <p class="series-description">{series.description}</p>
     <p>By <a href="/about">{byline}</a></p>
 
     <section aria-label="Books in this series">
