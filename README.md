@@ -203,6 +203,11 @@ A named sequence of books. Membership is **derived from the books** (any book wi
 | `cover` | | Optional image. |
 | `comps` | | Same shape as book comps. |
 
+A series' own page also emits an `ItemList`/`ListItem` **reading order** in
+JSON-LD (`seriesReadingOrder()`), built from each member book's `seriesPosition`
+— the schema.org-valid way to express "book N in this series" (see rule 9 in
+[For developers](#for-developers--ai-editors)).
+
 ### Theme (hub) — `src/content/hubs/<slug>.md`
 
 A curated collection of books "about" a topic (a `CollectionPage` in schema.org).
@@ -344,9 +349,14 @@ changing the fonts — see [Theming guide](#theming-guide) below.
   linking to the book's page — same destination as the adjacent title link (the
   cover's own link is marked `aria-hidden`/non-tabbable so screen readers don't
   announce the same link twice back to back).
-- **A book that belongs to a series gets a breadcrumb** back to that series' page,
-  rendered above the title (`Base.astro`'s `breadcrumbs` slot). Books with no
-  series show no breadcrumb.
+- **Every page with real site hierarchy gets a breadcrumb trail** — Home,
+  plus intermediate levels where they exist (Series -> a specific series,
+  or a specific series -> its book), rendered above the title
+  (`Base.astro`'s `breadcrumbs` slot) and emitted as a matching
+  `BreadcrumbList` in JSON-LD (`breadcrumbNode()` in `src/lib/jsonld.ts`) —
+  the visible trail and the structured-data one are built from the same
+  array so they can't drift apart. A standalone book with no series just
+  gets `Home / Book Title`.
 - **Every off-site link opens in a new tab** with `rel="noopener noreferrer"` —
   retailer buy links, `sameAs` social/Wikipedia/Goodreads links, event ticket
   links. Internal links (nav, footer legal links, breadcrumbs) are untouched.
@@ -647,9 +657,9 @@ The gate enforces the two rules that make this product work:
 > If you change engine code that touches JSON-LD, **the gate is your proof**, not
 > a green build. It is designed to fail loudly on the silent-failure classes above.
 
-**A live-site review (2026-07-23) caught three failure classes the gate
-deliberately doesn't check (structural-only, not semantic/Rich-Results —
-see the gate's own header comment), all now fixed at the source:**
+**A live-site review (2026-07-23) caught failure classes the gate
+deliberately doesn't check (structural-only, not semantic/Rich-Results/
+vocabulary — see the gate's own header comment), all now fixed at the source:**
 - `image` fields were root-relative paths, invalid outside page context —
   now absolute everywhere (rule 7 in [For developers](#for-developers--ai-editors)).
 - The shared `WebSite` node was asserting a different `name` per page (the
@@ -658,6 +668,13 @@ see the gate's own header comment), all now fixed at the source:**
 - JSON-LD `url`/`@id`s omitted the trailing slash that `<link rel="canonical">`
   (and Cloudflare Pages' actual served URL) always has — now consistent
   (rule 8).
+- No `BreadcrumbList` existed anywhere, and a book's position within its
+  series was emitted as an invalid `position` property directly on the
+  `Book` node (`position` only exists on `ListItem` in schema.org's
+  vocabulary). Fixed by adding `breadcrumbNode()` (emitted, matching the
+  visible breadcrumb trail, on book/series/theme pages and the series
+  index) and `seriesReadingOrder()` (an `ItemList`/`ListItem` expressing
+  reading order validly, replacing the invalid `Book.position`) — rule 9.
 
 ---
 
@@ -804,6 +821,21 @@ failure the build won't catch — run the gate):
    page, and would also mismatch `<link rel="canonical">` (which is always
    the real, already-slash-correct `Astro.url`) — the exact "canonical and
    JSON-LD disagree" failure class this rule exists to prevent.
+
+9. **`position` only ever appears on a `ListItem`, never on a `Book`.**
+   Schema.org declares `position` as a property of `ListItem` (and nothing
+   else usable here) — a Book has no such property, so putting "book 3 in
+   this series" directly on the `Book` node is invalid structured data, even
+   though nothing in the build or the gate would have caught it (it's a
+   *vocabulary* error, not a dangling reference). The valid pattern for "this
+   thing is item N in an ordered list of things" is always a dedicated
+   `ItemList`/`ListItem` node that wraps a **named stub** reference — see
+   `seriesReadingOrder()` (a book's position within its series) and
+   `breadcrumbNode()` (a page's position in the breadcrumb trail) in
+   `jsonld.ts`, and `hubGraph()`'s `mainEntity`, which already used this
+   pattern correctly. When you need to express an order or rank of
+   something, reach for this pattern rather than bolting a `position` field
+   onto whatever node feels closest.
 
 **When you pull upstream:** engine changes land in `src/` (outside `src/content/`);
 your content stays untouched. If an upstream schema change requires a content

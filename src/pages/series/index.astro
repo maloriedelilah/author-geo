@@ -1,12 +1,14 @@
 ---
 // Series index — landing page for the "Series" nav item. Lists every series
 // with its member books, same derivation logic as the homepage's series
-// section. Emits NO JSON-LD of its own (each series' full BookSeries node
-// lives once on its own /series/<slug> page — DD-001); this is a plain
-// listing/navigation page.
+// section. Emits only a BreadcrumbList of its own (Home -> Series); each
+// series' full BookSeries node lives once on its own /series/<slug> page
+// (DD-001) — this is a plain listing/navigation page otherwise.
 import Base from '../../layouts/Base.astro';
+import JsonLd from '../../components/JsonLd.astro';
 import BookListItem from '../../components/BookListItem.astro';
 import { FileSource } from '../../lib/sources/FileSource';
+import { breadcrumbNode, pageUrl, graph } from '../../lib/jsonld';
 
 const source = new FileSource();
 const [seriesList, books] = await Promise.all([
@@ -25,8 +27,18 @@ const seriesWithBooks = seriesList.map((s) => ({
 // cover (first series' cover, else its first book's) reads better on a
 // shared link than falling all the way back to the author's own photo.
 const shareImage = seriesWithBooks[0]?.series.cover ?? seriesWithBooks[0]?.books[0]?.cover;
+
+const pageGraph = graph([
+  breadcrumbNode([{ name: 'Home', url: pageUrl('/') }, { name: 'Series' }]),
+]);
 ---
 <Base title="Series" description="All series" image={shareImage}>
+  <Fragment slot="breadcrumbs">
+    <a href="/">Home</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span aria-current="page">Series</span>
+  </Fragment>
+  <JsonLd graph={pageGraph} />
   <h1>Series</h1>
   {seriesWithBooks.length === 0 && <p>No series yet.</p>}
   {seriesWithBooks.map(({ series, books: memberBooks }) => (

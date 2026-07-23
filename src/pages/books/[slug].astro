@@ -9,7 +9,7 @@ import Base from '../../layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import CompsBlock from '../../components/CompsBlock.astro';
 import { FileSource } from '../../lib/sources/FileSource';
-import { bookNode, graph } from '../../lib/jsonld';
+import { bookNode, breadcrumbNode, pageUrl, graph } from '../../lib/jsonld';
 import { externalAttrs } from '../../lib/links';
 import { formatDate, isFutureRelease } from '../../lib/date';
 
@@ -39,11 +39,22 @@ const series = book.seriesSlug
   ? await source.getSeriesBySlug(book.seriesSlug)
   : undefined;
 
+// Breadcrumb trail — built to MATCH the visible <Fragment slot="breadcrumbs">
+// below exactly (a BreadcrumbList that disagrees with what a visitor actually
+// sees on the page would be its own kind of contradiction). Home -> Series ->
+// Book when the book belongs to one; Home -> Book for a standalone title.
+const crumbs = [
+  { name: 'Home', url: pageUrl('/') },
+  ...(series ? [{ name: series.name, url: pageUrl(`/series/${series.slug}`) }] : []),
+  { name: book.title },
+];
+
 const pageGraph = graph([
   bookNode(book, {
     series: series ? { slug: series.slug, name: series.name } : undefined,
     authors: bookAuthors,
   }),
+  breadcrumbNode(crumbs),
 ]);
 
 const byline = bookAuthors.map((a) => a.name).join(', ');
@@ -60,13 +71,17 @@ const bookIsbn = book.editions.find((e) => e.isbn)?.isbn;
   bookIsbn={bookIsbn}
   bookReleaseDate={book.datePublished}
 >
-  {series && (
-    <Fragment slot="breadcrumbs">
-      <a href={`/series/${series.slug}`}>{series.name}</a>
-      <span class="sep" aria-hidden="true">/</span>
-      <span aria-current="page">{book.title}</span>
-    </Fragment>
-  )}
+  <Fragment slot="breadcrumbs">
+    <a href="/">Home</a>
+    <span class="sep" aria-hidden="true">/</span>
+    {series && (
+      <>
+        <a href={`/series/${series.slug}`}>{series.name}</a>
+        <span class="sep" aria-hidden="true">/</span>
+      </>
+    )}
+    <span aria-current="page">{book.title}</span>
+  </Fragment>
   <JsonLd graph={pageGraph} />
   <article>
     <div class="book-card">
