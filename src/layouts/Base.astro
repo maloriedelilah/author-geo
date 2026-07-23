@@ -9,6 +9,18 @@
 // itself). So this layout reads the primary author from the ContentSource directly
 // — it does NOT depend on the page passing one in — and emits a NAMED STUB
 // (never a bare @id) pointing at the canonical Person node defined once on /about.
+//
+// WebSite vs WebPage (fixed 2026-07-23): every page shares ONE WebSite @id
+// (`#website`), so that node's properties must be the same everywhere — it
+// is ONE entity, asserted identically on every page it appears on. It used
+// to carry `name: title`, which is wrong the instant two pages have
+// different titles (which is every pair of pages): that's the SAME @id
+// being asserted to have two different names, a real contradiction, not
+// just a stylistic wart. The page's own title/description belong on a
+// per-page WebPage node instead (own @id, own url, own name), linked back
+// to the constant WebSite via `isPartOf`. WebSite.name reuses the exact
+// value already used for `og:site_name` below (the primary author's name)
+// so there is one source of truth for "what is this site called", not two.
 import JsonLd from '../components/JsonLd.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
@@ -56,15 +68,32 @@ if (!primaryAuthor) {
 const ogImageSrc = image ?? primaryAuthor.photo;
 const ogImage = ogImageSrc ? new URL(ogImageSrc, Astro.site).toString() : undefined;
 
+const websiteId = new URL('#website', Astro.site).toString();
+// Astro.url is already the real, trailing-slash-correct URL for this exact
+// page (matches the canonical link below) — build the WebPage's own @id off
+// of it rather than re-deriving a path, so the two can never disagree.
+const pageId = new URL('#webpage', Astro.url).toString();
+
 const siteGraph = {
   '@context': 'https://schema.org',
   '@graph': [
     {
       '@type': 'WebSite',
-      '@id': new URL('#website', Astro.site).toString(),
+      '@id': websiteId,
       url: siteConfig.siteUrl,
-      name: title,
+      // Constant across every page — see comment above. NOT the per-page title.
+      name: primaryAuthor.name,
       publisher: namedStub(authorId(primaryAuthor.slug), primaryAuthor.name),
+    },
+    {
+      '@type': 'WebPage',
+      '@id': pageId,
+      url: Astro.url.toString(),
+      name: title,
+      ...(description ? { description } : {}),
+      // Named stub, never a bare @id (DD-001) — resolves standalone even if
+      // a consumer only reads this one page's graph in isolation.
+      isPartOf: namedStub(websiteId, primaryAuthor.name, 'WebSite'),
     },
   ],
 };

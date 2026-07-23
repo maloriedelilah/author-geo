@@ -647,6 +647,18 @@ The gate enforces the two rules that make this product work:
 > If you change engine code that touches JSON-LD, **the gate is your proof**, not
 > a green build. It is designed to fail loudly on the silent-failure classes above.
 
+**A live-site review (2026-07-23) caught three failure classes the gate
+deliberately doesn't check (structural-only, not semantic/Rich-Results —
+see the gate's own header comment), all now fixed at the source:**
+- `image` fields were root-relative paths, invalid outside page context —
+  now absolute everywhere (rule 7 in [For developers](#for-developers--ai-editors)).
+- The shared `WebSite` node was asserting a different `name` per page (the
+  page's own title) — split into a constant `WebSite` + a per-page `WebPage`
+  node (rule 6).
+- JSON-LD `url`/`@id`s omitted the trailing slash that `<link rel="canonical">`
+  (and Cloudflare Pages' actual served URL) always has — now consistent
+  (rule 8).
+
 ---
 
 ## Deploying to Cloudflare Pages
@@ -732,8 +744,9 @@ src/
     sources/FileSource.ts# reads content collections -> ContentSource (co-author aware)
     jsonld.ts            # THE ENGINE: builds the schema.org @graph (nodes + named stubs)
     leads/               # MailerLite / EmailOctopus adapters (Tier 2)
-  layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub); wraps
-                         #   every page in Header/Footer and applies theme.mode/accent
+  layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub) AND a
+                         #   per-page WebPage node (title/description, isPartOf -> WebSite);
+                         #   wraps every page in Header/Footer, applies theme.mode/accent
   components/            # JsonLd, SubscribeForm, ContactForm, CompsBlock, Header, Footer
   pages/                 # route templates: index, about, books/[slug], series/[slug],
                          #   series/index (nav landing page), themes/[slug], events/index,
@@ -764,6 +777,33 @@ failure the build won't catch — run the gate):
 
 5. **Prove changes with the gate, not the build.** Merge all `ld+json` blocks per
    page and validate; require SUCCESS + zero dangling refs across every page type.
+
+6. **One entity, one set of facts — never asserted two ways.** The `WebSite`
+   node's `@id` (`{siteUrl}/#website`) is emitted **identically on every page**,
+   so its properties (`name` in particular) must be the same every time — it's
+   the same real-world entity, not a new one per page. Page-specific facts
+   (the page's own title/description) belong on a separate `WebPage` node
+   instead (own `@id`, `isPartOf` pointing back at the `WebSite`), never
+   folded into the shared `WebSite` node. This is why `WebSite.name` is the
+   site's author name, not `title` — see `Base.astro`.
+
+7. **Every `image` in JSON-LD is an absolute URL** (`src/lib/jsonld.ts`'s
+   `absImage()`), never a root-relative path. An `<img src="/covers/x.png">`
+   is fine — it resolves against the page it's on — but a JSON-LD consumer
+   (a feed reader, a scraper, an API) may have no page context to resolve a
+   relative path against, so schema.org effectively requires absolute image
+   URLs to be safe.
+
+8. **Every page's own `url`/`@id` (and any `@id` built off it, like a
+   fragment reference) is trailing-slash-normalized** (`pageUrl()` in
+   `jsonld.ts`). This isn't cosmetic: Astro's static build emits directory-style
+   output (`/foo/index.html`), and Cloudflare Pages serves that at `/foo/`
+   while 308-redirecting the slash-less `/foo` to it — so `/foo` is not this
+   site's real, final URL. Asserting it in JSON-LD would put a
+   redirect-then-resolve hop between a crawler's citation and the actual
+   page, and would also mismatch `<link rel="canonical">` (which is always
+   the real, already-slash-correct `Astro.url`) — the exact "canonical and
+   JSON-LD disagree" failure class this rule exists to prevent.
 
 **When you pull upstream:** engine changes land in `src/` (outside `src/content/`);
 your content stays untouched. If an upstream schema change requires a content
