@@ -676,6 +676,39 @@ vocabulary — see the gate's own header comment), all now fixed at the source:*
   index) and `seriesReadingOrder()` (an `ItemList`/`ListItem` expressing
   reading order validly, replacing the invalid `Book.position`) — rule 9.
 
+### Cross-page identity gate — `npm run validate:crossid`
+
+The gate above (`validate-jsonld.mjs`) checks **references within one page** —
+does every `{"@id": "..."}` pointer resolve to something defined on that same
+page? It cannot see, and was never scoped to see, a different failure class:
+the **same `@id` asserting contradictory data on different pages**. That's a
+real bug this repo shipped: every page emitted the shared `WebSite` node under
+one `@id` (`#website`), but that node's `name` was bound to the page's own
+`<title>` — so the "same" entity had a different name on every page, and
+`validate-jsonld.mjs` was structurally blind to it (on any single page, in
+isolation, the node was perfectly well-formed).
+
+`scripts/validate-crossid.mjs` closes that gap: it builds the site, walks
+**every** page's JSON-LD, groups every node with both `@id` and `@type` by its
+`@id`, and flags any `@id` where two pages disagree on a shared property
+value (or on `@type` itself). Missing keys are **not** flagged — a minimal
+named stub (`{@id, @type, name}`) referencing a fuller node defined elsewhere
+is the normal, correct pattern used throughout this codebase, not a
+contradiction.
+
+```sh
+npm run build
+npm run validate:crossid
+```
+
+Run it alongside (not instead of) `validate:ld` — they catch different bugs:
+
+| | `validate:ld` | `validate:crossid` |
+|---|---|---|
+| Scope | within one page | across all pages |
+| Catches | dangling `{@id}` references, malformed JSON | the same `@id` asserting different data on different pages |
+| Would've caught the `WebSite.name` bug? | No (well-formed on every single page) | Yes (exactly what it's built for) |
+
 ---
 
 ## Deploying to Cloudflare Pages
