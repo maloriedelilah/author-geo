@@ -49,6 +49,15 @@ export const siteConfig = {
     layout: 'left' as 'left' | 'centered',
   },
 
+  // --- Homepage hero slideshow ---------------------------------------------
+  // The homepage's top section (Latest release, then one slide per upcoming
+  // preorder book, soonest first) auto-advances every `intervalSeconds`,
+  // pauses while the mouse/keyboard focus is over it, and always has arrows.
+  // Only relevant when there's more than one slide to rotate through.
+  heroSlideshow: {
+    intervalSeconds: 7,
+  },
+
   // --- Header nav --------------------------------------------------------
   // Rendered in the header per `header.layout` above, after the brand
   // (logo/wordmark). /contact ships as a static form (Tier 1); it doesn't

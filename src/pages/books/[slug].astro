@@ -11,7 +11,7 @@ import CompsBlock from '../../components/CompsBlock.astro';
 import { FileSource } from '../../lib/sources/FileSource';
 import { bookNode, graph } from '../../lib/jsonld';
 import { externalAttrs } from '../../lib/links';
-import { formatDate } from '../../lib/date';
+import { formatDate, isFutureRelease } from '../../lib/date';
 
 const source = new FileSource();
 
@@ -47,6 +47,7 @@ const pageGraph = graph([
 ]);
 
 const byline = bookAuthors.map((a) => a.name).join(', ');
+const isPreorder = isFutureRelease(book.datePublished);
 ---
 <Base title={`${book.title} — ${byline}`} description={book.description}>
   {series && (
@@ -61,10 +62,10 @@ const byline = bookAuthors.map((a) => a.name).join(', ');
     <div class="book-card">
       <div class="cover-col">
         <img class="cover" src={book.cover} alt={`Cover of ${book.title}`} />
-        <p class="release-date">Released {formatDate(book.datePublished)}</p>
+        <p class="release-date">{isPreorder ? 'Releases' : 'Released'} {formatDate(book.datePublished)}</p>
       </div>
       <div class="book-card-body">
-        <h1>{book.title}</h1>
+        <h1>{book.title}{isPreorder && <span class="preorder-badge">Pre-order</span>}</h1>
         {book.subtitle && <p class="subtitle">{book.subtitle}</p>}
         {series && book.seriesPosition != null && (
           <p class="series-info">

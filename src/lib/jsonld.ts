@@ -7,6 +7,7 @@
 // (which dangles the moment the referencing page doesn't also happen to supply the
 // full node) and never a re-inlined full node (which would duplicate + drift).
 import type { Author, Book, Series, Hub, EventItem } from './ContentSource';
+import { isFutureRelease } from './date';
 
 const SITE = (path = '') => new URL(path, import.meta.env.SITE).toString();
 // Per-author, About-anchored — the About page is the canonical Person home (DD-001).
@@ -53,8 +54,13 @@ export function bookNode(
          position: b.seriesPosition } : {}),
     workExample: b.editions.map((e) => ({ '@type': 'Book', bookFormat: e.format,
       isbn: e.isbn, potentialAction: undefined,
+      // Preorder support: derived from datePublished, never a separate field
+      // (see isFutureRelease's doc comment in lib/date.ts) — a future-dated
+      // book automatically emits PreOrder here and flips to InStock on its
+      // own the moment the site rebuilds after that date passes.
       offers: { '@type': 'Offer', url: e.url, price: e.price, priceCurrency: e.currency,
-        availability: 'https://schema.org/InStock' } })) };
+        availability: isFutureRelease(b.datePublished)
+          ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock' } })) };
 }
 
 export function seriesNode(

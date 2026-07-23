@@ -7,8 +7,11 @@
 // canonical full Person node lives exactly once. Emitting a second full Person
 // node (or even a bare @id) here would violate the identity spine, so: don't.
 import Base from '../layouts/Base.astro';
+import HeroSlideshow from '../components/HeroSlideshow.astro';
+import ComingSoonRow from '../components/ComingSoonRow.astro';
 import { FileSource } from '../lib/sources/FileSource';
 import { siteConfig } from '../config';
+import { isFutureRelease, formatDate } from '../lib/date';
 
 const source = new FileSource();
 const [books, seriesList, authors] = await Promise.all([
@@ -17,12 +20,57 @@ const [books, seriesList, authors] = await Promise.all([
   source.getAuthors(),
 ]);
 
-// (a) Most recently released book, featured.
-const featured = [...books].sort(
+const now = new Date();
+
+// "Preorder" is never a separate field — a book with a future datePublished
+// IS a preorder, everywhere on the site at once (see lib/date.ts's
+// isFutureRelease doc comment: this same check also drives jsonld.ts's
+// Offer.availability and the PRE-ORDER badge on series listings/book pages).
+const releasedBooks = books.filter((b) => !isFutureRelease(b.datePublished, now));
+const upcomingBooks = books
+  .filter((b) => isFutureRelease(b.datePublished, now))
+  .sort((a, b) => a.datePublished.getTime() - b.datePublished.getTime()); // soonest first
+
+// (a) Hero slideshow: most recently RELEASED book first, then every upcoming
+// book as its own slide (soonest first) — see HeroSlideshow.astro. A book
+// never appears here before it's either released or genuinely upcoming, so
+// this can never show something that isn't real yet.
+const latestRelease = [...releasedBooks].sort(
   (a, b) => b.datePublished.getTime() - a.datePublished.getTime(),
 )[0];
 
-// (b) Each series, with its member books (ordered by seriesPosition).
+const heroSlides = [
+  ...(latestRelease ? [{ kind: 'latest' as const, book: latestRelease }] : []),
+  ...upcomingBooks.map((book) => ({ kind: 'comingSoon' as const, book })),
+].map(({ kind, book }) => ({
+  kind,
+  slug: book.slug,
+  title: book.title,
+  cover: book.cover,
+  description: book.description,
+  releaseDate: formatDate(book.datePublished),
+}));
+
+// (b) Coming soon row: same upcoming-book set, with series context resolved
+// for the "Book N of <Series>" line.
+const seriesBySlug = new Map(seriesList.map((s) => [s.slug, s] as const));
+const comingSoonBooks = upcomingBooks.map((b) => {
+  const s = b.seriesSlug ? seriesBySlug.get(b.seriesSlug) : undefined;
+  return {
+    slug: b.slug,
+    title: b.title,
+    cover: b.cover,
+    releaseDate: formatDate(b.datePublished),
+    seriesName: s?.name,
+    seriesSlug: s?.slug,
+    seriesPosition: b.seriesPosition,
+  };
+});
+
+// (c) Each series, with its member books (ordered by seriesPosition) —
+// intentionally ALL member books including any upcoming ones, so a reader
+// browsing a series here sees its full lineup; an upcoming entry still gets
+// the same PRE-ORDER badge treatment as everywhere else.
 const seriesWithBooks = seriesList.map((s) => ({
   series: s,
   books: books
@@ -30,7 +78,7 @@ const seriesWithBooks = seriesList.map((s) => ({
     .sort((a, b) => (a.seriesPosition ?? 0) - (b.seriesPosition ?? 0)),
 }));
 
-// (c) Truncated "about the author" blurb for the site's main author — the same
+// (d) Truncated "about the author" blurb for the site's main author — the same
 // primary/first author entry Base.astro treats as the WebSite publisher.
 const primaryAuthor = authors[0];
 const BIO_TRUNCATE_CHARS = 220;
@@ -39,25 +87,15 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
   : primaryAuthor?.bio;
 ---
 <Base title={primaryAuthor?.name ?? 'Home'} description={primaryAuthor?.bio}>
+  <h1 class="visually-hidden">{primaryAuthor?.name ?? 'Home'}</h1>
+
   {siteConfig.slogan && (
     <p class="site-slogan">{siteConfig.slogan}</p>
   )}
 
-  {featured && (
-    <section aria-label="Latest release">
-      <h1>Latest release</h1>
-      <article class="card book-card">
-        <a class="cover-link" href={`/books/${featured.slug}`} aria-hidden="true" tabindex="-1">
-          <img class="cover" src={featured.cover} alt="" />
-        </a>
-        <div class="book-card-body">
-          <h2><a href={`/books/${featured.slug}`}>{featured.title}</a></h2>
-          <p>{featured.description}</p>
-          <p><a href={`/books/${featured.slug}`}>Learn more &rarr;</a></p>
-        </div>
-      </article>
-    </section>
-  )}
+  <HeroSlideshow slides={heroSlides} intervalSeconds={siteConfig.heroSlideshow.intervalSeconds} />
+
+  <ComingSoonRow books={comingSoonBooks} />
 
   {seriesWithBooks.length > 0 && (
     <section aria-label="Series">
@@ -69,7 +107,10 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
             <p class="series-description">{series.description}</p>
             <ul>
               {memberBooks.map((b) => (
-                <li><a href={`/books/${b.slug}`}>{b.title}</a></li>
+                <li>
+                  <a href={`/books/${b.slug}`}>{b.title}</a>
+                  {isFutureRelease(b.datePublished, now) && <span class="preorder-badge">Pre-order</span>}
+                </li>
               ))}
             </ul>
           </div>

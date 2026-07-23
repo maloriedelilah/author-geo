@@ -335,8 +335,36 @@ changing the fonts — see [Theming guide](#theming-guide) below.
   the series-listing rows above) are deliberately separate CSS classes — the
   book blurb ships ~25% smaller by default since it sits next to a small
   thumbnail, but the two can be sized/styled independently either way.
+- **Preorders need no separate flag** — a book with a `datePublished` in the
+  future *is* a preorder, everywhere at once (`src/lib/date.ts`'s
+  `isFutureRelease`, the single source of truth all of the below reads from):
+  it emits schema.org `Offer.availability: PreOrder` instead of `InStock`
+  (`src/lib/jsonld.ts`); it gets a **PRE-ORDER badge** next to its title on
+  series listings and its own book detail page; it's excluded from the
+  homepage's "Latest release" slide (which only ever considers already-released
+  books); and it appears in the homepage's **Coming soon** row (a horizontal,
+  scrollable strip of cover + title + series/Book N + release date, arrows
+  auto-hide unless the row actually overflows) and as a "Coming soon" slide in
+  the hero slideshow above it. The moment the authored date passes and the
+  site rebuilds, all of this flips to "released" on its own — nothing to
+  toggle back manually.
 
-### 5. Secrets — `.env` (Tier 2)
+### 5. Homepage hero slideshow — `src/config.ts`
+
+```ts
+heroSlideshow: {
+  intervalSeconds: 7,   // auto-advance interval; only matters with >1 slide
+}
+```
+
+The homepage's top section is a slideshow: the most recently **released** book
+first, then one slide per **upcoming** (preorder) book, soonest release first.
+It auto-advances every `intervalSeconds`, pauses while the mouse or keyboard
+focus is over it, and always shows arrows + dots once there's more than one
+slide. See the preorder bullet below for how a book becomes "upcoming" in the
+first place — there's no separate flag to set.
+
+### 6. Secrets — `.env` (Tier 2)
 
 Copy `.env.example` to `.env` and fill in the block for your chosen provider
 (`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`). These
