@@ -28,6 +28,7 @@ baked into every page.
 - [How it's organized](#how-its-organized-engine-vs-content)
 - [Adding your content](#adding-your-content) — the frontmatter contract
 - [Configuration](#configuration) — site URL, leads, theme/nav/footer
+- [SEO basics: robots.txt, sitemap, 404](#seo-basics-robotstxt-sitemap-404)
 - [Theming guide](#theming-guide) — every CSS variable, what it controls, how to do a full palette swap
 - [Legal pages](#legal-pages-privacy--terms) — Privacy Policy & Terms of Use
 - [Contact form](#contact-form) — the static form + how to wire it to actually send email
@@ -407,6 +408,37 @@ set them as Cloudflare Pages secrets in production.
 
 ---
 
+## SEO basics: robots.txt, sitemap, 404
+
+Three crawlability basics that are easy to forget on a hand-rolled site, all
+handled automatically — nothing to configure beyond the site URL above:
+
+- **`robots.txt`** is generated at build time by `src/pages/robots.txt.ts`
+  (not a static file in `public/`) so its `Sitemap:` line is always built from
+  the SAME `site` value as every JSON-LD `@id` and the sitemap itself — one
+  more static copy of the domain would just be a fourth place to forget to
+  edit. Tier 1 allows everything (`Allow: /`); when Tier 2's `/api/*` routes
+  come online, add a `Disallow: /api/` line there — those are form-submission
+  endpoints, not content, and have no reason to be indexed.
+- **`sitemap.xml`** comes from the official `@astrojs/sitemap` integration
+  (wired into `astro.config.mjs`). It walks the actual static build output, so
+  every page you add is picked up automatically — nothing to maintain by hand.
+  It's emitted as `sitemap-index.xml` + `sitemap-0.xml` (Astro's default
+  layout), which is what `robots.txt` points at.
+- **A real 404.** `src/pages/404.astro` is a themed not-found page (same
+  header/footer/chrome as everything else) that Astro's build special-cases
+  into a flat `dist/404.html` — Cloudflare Pages auto-detects a top-level
+  `404.html` and serves it with a genuine `404` status for any unmatched URL.
+  Without this file, Cloudflare Pages falls back to serving `index.html` for
+  every bogus URL — a silent `200` everywhere, which is exactly the gap this
+  closes. (This is the classic Cloudflare **Pages** product, which this repo
+  already targets via `wrangler.toml`'s `pages_build_output_dir` — no extra
+  Wrangler config needed. The newer "Workers with static assets" product
+  requires an explicit `not_found_handling` setting for the same behavior, but
+  that's a different deploy target than the one this repo uses.)
+
+---
+
 ## Theming guide
 
 `theme.mode` + `theme.accent` in `src/config.ts` (see [Configuration](#configuration)
@@ -630,6 +662,9 @@ To bring them online (Tier 2):
 4. Set the provider secrets as Cloudflare Pages/Workers secrets — for the
    contact form specifically: `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`,
    `CONTACT_TO_EMAIL`, and optionally `TURNSTILE_SECRET_KEY`.
+5. Add `Disallow: /api/` to `src/pages/robots.txt.ts`'s generated body — those
+   routes are form-submission endpoints, not content (see
+   [SEO basics](#seo-basics-robotstxt-sitemap-404)).
 
 At that point Tier 1 stops being a pure static deploy and becomes an SSR/hybrid
 Cloudflare deploy — which is why it's a deliberate tier boundary, not a default.
