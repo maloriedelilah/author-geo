@@ -5,11 +5,22 @@
 //
 // Request shape: application/x-www-form-urlencoded or multipart/form-data
 // (whatever the browser's native <form> submit sends) with fields:
-//   name, email, message, company (honeypot), cf-turnstile-response (widget).
+//   name, email, message, hp_check (honeypot), cf-turnstile-response (widget).
+//
+// The honeypot field name deliberately does NOT match any real autofill
+// category (originally named "company" with a "Company" label — Chrome's
+// autofill heuristics match on field name/label text and will silently fill
+// a field like that from a saved address/business profile even with
+// autocomplete="off" set, which is a long-documented Chrome quirk. That's
+// not a bot — that's a real visitor's browser defeating the honeypot on
+// their own form submission, which looks identical to this endpoint: fake
+// success returned, no Turnstile call, no Resend call, nothing in either
+// dashboard. Keep this name arbitrary/non-semantic if it's ever renamed
+// again.
 //
 // Anti-spam, in order (cheapest checks first so a bot pays as little of our
 // runtime/Resend-quota as possible):
-//   1. Honeypot ("company") filled in -> fake success, no email sent, no
+//   1. Honeypot ("hp_check") filled in -> fake success, no email sent, no
 //      Turnstile call spent. Real users never see or fill this field.
 //   2. Turnstile token missing/invalid -> real 400, no email sent.
 //   3. Only THEN do we spend a Resend API call.
@@ -41,7 +52,7 @@ export const POST: APIRoute = async ({ request }) => {
   const name = String(form.get('name') ?? '').trim();
   const email = String(form.get('email') ?? '').trim();
   const message = String(form.get('message') ?? '').trim();
-  const honeypot = String(form.get('company') ?? '').trim();
+  const honeypot = String(form.get('hp_check') ?? '').trim();
   const turnstileToken = form.get('cf-turnstile-response');
 
   // 1. Honeypot — real visitors never fill this (it's visually hidden and
