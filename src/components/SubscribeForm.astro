@@ -6,9 +6,14 @@
 // shows an inline status message. Single-vs-double opt-in is an ESP/config
 // concern (siteConfig.leads.doubleOptIn) — this component doesn't branch on it.
 //
-// Honeypot: a hidden "company" field. Real users never see or fill it (it's
-// visually hidden + tabindex="-1" + excluded from autofill); subscribe.ts
-// already checks for it and silently 204s bots that do fill it in.
+// Honeypot: a hidden "hp_check" field. Real users never see or fill it
+// (it's visually hidden + tabindex="-1" + excluded from autofill);
+// subscribe.ts already checks for it and silently 204s bots that do fill
+// it in. Field name is deliberately non-semantic — an earlier version used
+// "company" with a "Company" label, which Chrome's autofill heuristics
+// match on and will silently fill from a saved business profile even with
+// autocomplete="off" set, defeating the honeypot for real visitors (see
+// contact.ts's fuller writeup of the same bug on the contact form).
 interface Props {
   title?: string;
   description?: string;
@@ -21,8 +26,8 @@ const { title = 'Subscribe', description } = Astro.props as Props;
 
   <p class="subscribe-form__hp" aria-hidden="true">
     <label>
-      Company
-      <input type="text" name="company" tabindex="-1" autocomplete="off" />
+      Leave this field blank
+      <input type="text" name="hp_check" tabindex="-1" autocomplete="off" />
     </label>
   </p>
 
