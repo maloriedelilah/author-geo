@@ -160,4 +160,5 @@ build` (Zod frontmatter validation) is the minimum bar before committing.
   `ld+json` blocks. Ground truth beats assumption.
 - A design rule? → the five rules above and `README.md`. If a rule seems wrong to you,
   surface it to the maintainer — don't edit around it.
-- Deployment? → `README.md` (Cloudflare Pages, static build).
+- Deployment? → `README.md` (Cloudflare Workers static assets, mostly-static
+  build — only `/api/*` runs on demand; see the deploy-model callout there).
