@@ -41,6 +41,31 @@ compatibility_date = "2026-07-21"
 [assets]
 not_found_handling = "404-page"
 
+# Observability: Workers Logs + traces, so requests to /api/contact (the
+# only on-demand route in this repo — everything else is prerendered and
+# never touches a Worker invocation) show up in the Cloudflare dashboard for
+# debugging/monitoring instead of being invisible. `enabled = false` at the
+# top level is Cloudflare's own documented shape for this block — the real
+# on/off switches are the nested [observability.logs] / [.traces] toggles.
+# Traces are off for now (no distributed-tracing need yet for a single
+# simple POST route); logs are on with 100% sampling and persisted, since
+# contact-form volume is low enough that full logging costs nothing and
+# gives real visibility into failures (bad Turnstile tokens, Resend errors).
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
+
 # --- Tier 2 forms: no bindings needed. Sessions get an auto-provisioned
 # "SESSION" KV namespace by default (the adapter's own default behavior,
 # unrelated to anything built here) — harmless and zero-setup, since
