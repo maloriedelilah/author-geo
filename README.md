@@ -10,10 +10,21 @@ You bring the content (Markdown files describing your books and yourself); the
 engine turns it into a fast static site with correct, cross-linked structured data
 baked into every page.
 
-- **Tier 1 (this repo):** a pure static site, deployed to **Cloudflare Pages**.
-- **Tier 2 (deferred, seam in place):** live server endpoints for the newsletter
-  signup and contact forms. Both forms ship now and go live when Tier 2 lands —
-  see [Tier 2](#tier-2--whats-deferred).
+- **Tier 1:** a static site (`output: 'static'`) — books, series, themes, events,
+  about, legal — deployed to **Cloudflare Workers** (static assets).
+- **Tier 2 (contact form -- live; newsletter signup -- deferred, seam in place):**
+  the contact form's `/api/contact` endpoint is real and wired to **Resend** +
+  **Cloudflare Turnstile** (see [Contact form](#contact-form)). The newsletter
+  form still ships as inert static markup -- its `/api/subscribe` endpoint isn't
+  written yet (see [Tier 2](#tier-2--whats-deferred)). Everything else on the
+  site stays a plain prerendered static page at zero per-request cost -- only
+  `/api/*` runs on demand.
+
+> **Deploy target note (2026-07-24):** this repo now deploys via Cloudflare's
+> newer **Workers static-assets** model, not the classic Pages
+> `pages_build_output_dir` config used before Tier 2's forms landed. That's a
+> forced move, not a preference -- see the callout in
+> [Deploying to Cloudflare](#deploying-to-cloudflare) for why.
 
 > **Editing this site with an AI agent?** Point it at **[`SKILL.md`](./SKILL.md)** —
 > a self-contained authoring procedure (the content contract, the per-type recipes,
@@ -34,7 +45,7 @@ baked into every page.
 - [Legal pages](#legal-pages-privacy--terms) — Privacy Policy & Terms of Use
 - [Contact form](#contact-form) — the static form + how to wire it to actually send email
 - [Validating your structured data](#validating-your-structured-data)
-- [Deploying to Cloudflare Pages](#deploying-to-cloudflare-pages)
+- [Deploying to Cloudflare](#deploying-to-cloudflare)
 - [Tier 2 — what's deferred](#tier-2--whats-deferred)
 - [For developers / AI editors](#for-developers--ai-editors) — architecture & the contract
 - [The design decisions (DDs)](#the-design-decisions-that-govern-this-repo)
@@ -460,10 +471,21 @@ first place — there's no separate flag to set.
 
 ### 6. Secrets — `.env` (Tier 2)
 
-Copy `.env.example` to `.env` and fill in the block for your chosen provider
-(`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`). These
-are only consumed once Tier 2's endpoint is live. **Never commit real values** —
-set them as Cloudflare Pages secrets in production.
+Copy `.env.example` to `.env` for local dev/build-testing. Two independent
+groups, at different stages:
+
+- **Newsletter** (`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` +
+  `EMAILOCTOPUS_LIST_ID`) — still **inert**; consumed only once
+  `/api/subscribe` is written (see [Tier 2](#tier-2--whats-deferred)).
+- **Contact form** (`RESEND_API_KEY`, `CONTACT_FROM_EMAIL`, `CONTACT_TO_EMAIL`,
+  `TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY`) — **live**, consumed by
+  `/api/contact` right now (see [Contact form](#contact-form) for the full
+  table of which is a real secret vs. a public build-time value).
+
+**Never commit real values** — set them as Cloudflare **Worker** environment
+variables/secrets in production (see
+[Deploying to Cloudflare](#deploying-to-cloudflare) for why it's "Worker",
+not "Pages").
 
 ---
 
@@ -476,9 +498,8 @@ handled automatically — nothing to configure beyond the site URL above:
   (not a static file in `public/`) so its `Sitemap:` line is always built from
   the SAME `site` value as every JSON-LD `@id` and the sitemap itself — one
   more static copy of the domain would just be a fourth place to forget to
-  edit. Tier 1 allows everything (`Allow: /`); when Tier 2's `/api/*` routes
-  come online, add a `Disallow: /api/` line there — those are form-submission
-  endpoints, not content, and have no reason to be indexed.
+  edit. Since `/api/contact` went live, it emits `Disallow: /api/` — those are
+  form-submission endpoints, not content, and have no reason to be indexed.
 - **`sitemap.xml`** comes from the official `@astrojs/sitemap` integration
   (wired into `astro.config.mjs`). It walks the actual static build output, so
   every page you add is picked up automatically — nothing to maintain by hand.
@@ -486,15 +507,15 @@ handled automatically — nothing to configure beyond the site URL above:
   layout), which is what `robots.txt` points at.
 - **A real 404.** `src/pages/404.astro` is a themed not-found page (same
   header/footer/chrome as everything else) that Astro's build special-cases
-  into a flat `dist/404.html` — Cloudflare Pages auto-detects a top-level
-  `404.html` and serves it with a genuine `404` status for any unmatched URL.
-  Without this file, Cloudflare Pages falls back to serving `index.html` for
-  every bogus URL — a silent `200` everywhere, which is exactly the gap this
-  closes. (This is the classic Cloudflare **Pages** product, which this repo
-  already targets via `wrangler.toml`'s `pages_build_output_dir` — no extra
-  Wrangler config needed. The newer "Workers with static assets" product
-  requires an explicit `not_found_handling` setting for the same behavior, but
-  that's a different deploy target than the one this repo uses.)
+  into a flat `dist/client/404.html`. This repo deploys via Cloudflare's
+  Workers static-assets product (see the deploy-model callout in
+  [Deploying to Cloudflare](#deploying-to-cloudflare)), where getting a
+  genuine `404` status for an unmatched URL — instead of a silent `200`
+  serving `index.html` for everything — requires an **explicit**
+  `assets.not_found_handling = "404-page"` in `wrangler.toml`. It's set
+  there deliberately (with a comment explaining why); don't remove it when
+  touching that file, or this exact gap reopens under a different deploy
+  model than the one it was originally closed for.
 
 ---
 
@@ -617,11 +638,13 @@ Both pages are always linked from the site footer automatically — nothing else
 
 ## Contact form
 
-`/contact` ships now (Tier 1) as a static page with a real form — see
-`src/components/ContactForm.astro`. It does **not** send email yet: the form
-POSTs to `/api/contact`, which doesn't exist until you wire Tier 2, same
-deferred status as `/api/subscribe` (see [Configuration](#configuration)
-above and [Tier 2](#tier-2--whats-deferred) below).
+**Live (2026-07-24).** `/contact` (`src/components/ContactForm.astro`) POSTs to
+a real, working `src/pages/api/contact.ts` — an on-demand Cloudflare Workers
+route (`export const prerender = false`) that sends the message via **Resend**,
+gated by **Cloudflare Turnstile**. Nothing about the rest of the site changed:
+every other route is still a plain prerendered static file (see the deploy-model
+callout in [Deploying to Cloudflare](#deploying-to-cloudflare) for why only this
+one route needed a real server).
 
 **Why there's no `mailto:` link or visible email address anywhere on the
 page:** any address in the page source gets scraped by spam bots within days.
@@ -629,42 +652,44 @@ The whole design point of routing this through a server-side endpoint is that
 the destination inbox is a **secret**, never rendered to the browser and never
 committed to the repo.
 
-**Cloudflare's actual answer to "can a static Pages site email a form
-submission":** yes, via a Cloudflare Pages Function (a small Worker that runs
-at `/api/*` once you flip to Tier 2's server output). Cloudflare doesn't send
-mail itself, so the Function calls a transactional email API. Concretely:
+**Anti-spam, cheapest check first** (so a bot spends as little of your
+Resend/Turnstile quota as possible):
+1. **Honeypot** — the hidden `company` field. Filled in -> the endpoint returns
+   a *fake* success (so a bot gets no signal it was caught) and does nothing
+   further: no Turnstile call, no Resend call.
+2. **Turnstile** — verified server-side (`src/lib/turnstile.ts`, calling
+   Cloudflare's own `siteverify` endpoint) *before* Resend is ever touched.
+   A missing/invalid token is a real `400`.
+3. **Resend** (`src/lib/email/resend.ts`) — only reached once both of the above
+   pass. Failures here return a real `502`, never a silent success.
 
-1. **Flip to Tier 2** — `output: 'server'` + the Cloudflare adapter in
-   `astro.config.mjs` (see [Tier 2](#tier-2--whats-deferred)).
-2. **Write `src/pages/api/contact.ts`** as a Pages Function: read the form
-   POST, reject silently if the honeypot (`company`) field is filled, then
-   call an email API with the message and the visitor's supplied name/email
-   as the reply-to.
-3. **Pick an email API and verify a sending domain** — MailChannels' free
-   integration for Workers/Pages **ended June 2024**; don't follow older
-   tutorials that assume it's still free. The currently-supported paths
-   Cloudflare's own docs point to are **Resend** or **Postmark**. Resend is
-   the simpler onboarding (free tier, DKIM/DMARC setup via a few DNS records
-   on your existing Cloudflare-managed domain) and has a published DPA/SCCs
-   for GDPR — reasonable for a starter template, though its account
-   metadata/logs are US-stored even if you send from an EU region. If full EU
-   data residency matters for your author's situation, that's worth a look
-   before committing.
-4. **Set secrets, don't commit them** — `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`
-   (a verified sender on your domain), `CONTACT_TO_EMAIL` (the real inbox —
-   this is the value that must never appear in `config.ts` or any page). Set
-   these as Cloudflare Pages **secrets** in the dashboard (or `wrangler pages
-   secret put`), and locally in `.env` (see `.env.example`) — never commit
-   real values.
-5. **Add spam gating beyond the honeypot** once this is a live endpoint —
-   Cloudflare Turnstile is the natural pairing (free, no CAPTCHA puzzle for
-   real users, verified server-side in the same Function before you call the
-   email API). `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` placeholders are
-   already in `.env.example` for when you add it.
+**Required config, all in `.env.example`:**
 
-None of the above is required for Tier 1 — the page and form render and
-validate fine without it. It's only needed once you actually want submissions
-to reach an inbox.
+| Var | Where it's set | Secret? | Notes |
+|-----|----------------|---------|-------|
+| `RESEND_API_KEY` | Cloudflare Worker env var | **yes** | From your Resend account. |
+| `CONTACT_FROM_EMAIL` | Cloudflare Worker env var | no, but private | Must be a sender verified on a domain you've set up in Resend. |
+| `CONTACT_TO_EMAIL` | Cloudflare Worker env var | no, but private | Your real inbox — never rendered to the browser or committed. |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Worker env var | **yes** | Verified server-side only, never sent to the browser. |
+| `TURNSTILE_SITE_KEY` | **build-time** env var (`.env` locally, a plain build variable in Cloudflare's Git-integration build settings — NOT a Worker runtime secret) | no — meant to be public, same as reCAPTCHA's site key | Read in `ContactForm.astro`'s frontmatter (server/build-time render, embedded as `data-sitekey`) to render the widget. Missing it fails `npm run build` loudly rather than silently shipping a form with no spam gate. |
+
+**Why Resend, not Postmark/MailChannels:** MailChannels' free integration for
+Workers/Pages **ended June 2024** — don't follow older tutorials that assume
+it's still free. Postmark was considered and rejected specifically for this
+project: its free tier is 100 emails/month (explicitly dev/test-only), against
+Resend's 3,000/month free tier — for a low-traffic author contact form, that's
+the difference between "free indefinitely" and "paying from day one." The code
+is written behind a small `EmailSender` interface (`src/lib/email/types.ts`,
+mirroring the existing `LeadAdapter` pattern in `src/lib/leads/`) specifically
+so a second provider is one new adapter file away if that calculus ever
+changes — see [For developers](#for-developers--ai-editors).
+
+**Why `Astro.locals.runtime.env` doesn't appear anywhere in this code:** it was
+removed in this adapter's current major. Runtime env vars/secrets are read via
+`import { env } from 'cloudflare:workers'` instead (see `src/env.d.ts` and
+`src/pages/api/contact.ts`) — if you're extending this endpoint or writing
+`/api/subscribe`, use that pattern, not the older one you may find in
+older tutorials/AI training data.
 
 ---
 
@@ -802,39 +827,68 @@ Run it alongside (not instead of) `validate:ld` — they catch different bugs:
 
 ---
 
-## Deploying to Cloudflare Pages
+## Deploying to Cloudflare
 
-Tier 1 is a **static** site (`output: 'static'`), so it deploys to Cloudflare
-Pages as plain built assets — no Worker runtime, no bindings.
+Tier 1 stays a **static** build (`output: 'static'`) — books, series, themes,
+events, about, legal are all still plain prerendered files, zero per-request
+cost. Only `/api/contact` (Tier 2, live) runs on demand. What changed with
+Tier 2's forms landing is **how that gets deployed**, not how much of the site
+is dynamic.
+
+> **Why this isn't "Cloudflare Pages" anymore (2026-07-24):** adding the
+> contact form's on-demand `/api/contact` route required the Cloudflare
+> adapter (`@astrojs/cloudflare`) so *that one route* has a real server to run
+> in. The version of the adapter this repo is pinned to (v14, which this
+> project's Astro major requires) has **"Removed: Cloudflare Pages support"**
+> in its own changelog — the classic `pages_build_output_dir` config this repo
+> used through all of Tier 1 no longer works with it at all, and hits a real,
+> currently-open upstream bug if you try
+> (wrangler 4.98+ rejects the adapter's own auto-generated `"ASSETS"` binding
+> name specifically when `pages_build_output_dir` is present — see
+> [cloudflare/workers-sdk#14226](https://github.com/cloudflare/workers-sdk/issues/14226)
+> and [withastro/astro#16107](https://github.com/withastro/astro/issues/16107)).
+> The supported path now is Cloudflare's newer **Workers static-assets** model
+> instead — same idea (prerendered files served directly, one route
+> on-demand), different deploy mechanics. If a future adapter/wrangler
+> release restores Pages support, revisit this; don't assume it's permanent.
 
 **Before you deploy:** set your real site URL in both places (see
-[Configuration](#configuration)).
+[Configuration](#configuration)), and set the Tier 2 secrets (see
+[Contact form](#contact-form)) as real Cloudflare **Worker** environment
+variables/secrets (Settings → Variables and Secrets on the Worker, not a
+Pages project — there is no Pages project anymore).
 
 ### Option A — Git integration (recommended for clone-and-edit)
 
 Cloudflare builds and deploys on every push.
 
 1. Push this repo to GitHub/GitLab.
-2. Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git** →
-   pick the repo.
+2. Cloudflare dashboard → **Workers & Pages → Create → Workers → Connect to Git**
+   → pick the repo. (Not "Pages" — see the callout above.)
 3. Build settings:
-   - **Framework preset:** Astro
    - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
+   - **Deploy command:** `npx wrangler deploy` (this repo's `wrangler.toml`
+     already has everything Wrangler needs — `main`/`assets.directory`/
+     `assets.binding` are all adapter-managed automatically; see the comment
+     block at the top of `wrangler.toml` before you're tempted to hand-add
+     them, it explains why that breaks the build).
    - **Node version:** set an env var `NODE_VERSION` = `22.12` (or newer) so the
      build host matches the project's requirement.
-4. **Save and Deploy.** Cloudflare builds `dist/` and serves it. Every push to the
-   production branch redeploys; other branches get preview URLs.
-5. Add your custom domain under the project's **Custom domains** tab.
-
-`wrangler.toml` already declares `pages_build_output_dir = "./dist"` for this flow.
+4. Set the Tier 2 secrets (RESEND_API_KEY, CONTACT_FROM_EMAIL, CONTACT_TO_EMAIL,
+   TURNSTILE_SECRET_KEY) as **Worker** environment variables/secrets, and
+   `TURNSTILE_SITE_KEY` as a **build-time** environment variable (it's read at
+   build time in `ContactForm.astro`, not a runtime secret — see
+   [Contact form](#contact-form)).
+5. **Save and Deploy.** Every push to the production branch redeploys; other
+   branches get preview URLs.
+6. Add your custom domain under the Worker's **Custom domains** tab.
 
 ### Option B — Direct upload with Wrangler (manual / CI)
 
 ```sh
 npm install -g wrangler      # or npx wrangler
 npm run build
-wrangler pages deploy dist   # first run prompts to create/select the Pages project
+wrangler deploy              # reads wrangler.toml + dist/server/wrangler.json
 ```
 
 Use this for local one-off deploys or a custom CI pipeline.
@@ -843,30 +897,33 @@ Use this for local one-off deploys or a custom CI pipeline.
 
 ## Tier 2 — what's deferred
 
-Two **forms** ship in Tier 1 as static markup and POST to endpoints that don't
-exist yet: the newsletter form (`SubscribeForm` → `/api/subscribe`) and the
-contact form (`ContactForm` → `/api/contact`, see [Contact form](#contact-form)
-for the fuller Cloudflare-specific writeup). Both **endpoints** are intentionally
-deferred: they're server routes (`prerender = false`; subscribe additionally
-imports `cloudflare:workers`) and require SSR, which Tier 1's static build
-deliberately doesn't enable. Until Tier 2 lands, both forms are inert.
+**The contact form is live** (`ContactForm` → `/api/contact`, real, sends via
+Resend — see [Contact form](#contact-form)). **The newsletter form is still
+deferred**: `SubscribeForm` ships as static markup and POSTs to
+`/api/subscribe`, which doesn't exist yet.
 
-To bring them online (Tier 2):
-1. In `astro.config.mjs`, switch to `output: 'server'` + `adapter: cloudflare()`
-   (the commented block is right there).
-2. In `wrangler.toml`, uncomment the Workers/D1 block.
-3. Add `src/pages/api/subscribe.ts` (the lead-capture adapters under
-   `src/lib/leads/` are already present) and `src/pages/api/contact.ts` (a
-   Pages Function calling Resend/Postmark — see [Contact form](#contact-form)).
-4. Set the provider secrets as Cloudflare Pages/Workers secrets — for the
-   contact form specifically: `RESEND_API_KEY`, `CONTACT_FROM_EMAIL`,
-   `CONTACT_TO_EMAIL`, and optionally `TURNSTILE_SECRET_KEY`.
-5. Add `Disallow: /api/` to `src/pages/robots.txt.ts`'s generated body — those
-   routes are form-submission endpoints, not content (see
-   [SEO basics](#seo-basics-robotstxt-sitemap-404)).
+Getting the contact form live did **not** require the "flip to `output:
+'server'` for everything" step this section originally described. That
+approach is deliberately avoided (see `astro.config.mjs`'s own comment): the
+site stays `output: 'static'`, with only `/api/contact` opting into on-demand
+rendering via `export const prerender = false`. Every book/series/theme/hub
+page is still a zero-cost prerendered file. Adding `/api/subscribe` follows
+the exact same pattern — it does **not** need any further "flip" either:
 
-At that point Tier 1 stops being a pure static deploy and becomes an SSR/hybrid
-Cloudflare deploy — which is why it's a deliberate tier boundary, not a default.
+To bring `/api/subscribe` online:
+1. Add `src/pages/api/subscribe.ts` — the lead-capture adapters under
+   `src/lib/leads/` already exist; mirror `src/pages/api/contact.ts`'s shape
+   (`export const prerender = false`, read env vars via
+   `import { env } from 'cloudflare:workers'` — **not**
+   `Astro.locals.runtime.env`, which is removed in this adapter's current
+   major; see `src/env.d.ts`'s comment and the [Contact form](#contact-form)
+   section for why).
+2. Set `MAILERLITE_API_KEY` (or `EMAILOCTOPUS_API_KEY` +
+   `EMAILOCTOPUS_LIST_ID`, matching `siteConfig.leads.provider` in
+   `src/config.ts`) as a Cloudflare **Worker** environment variable/secret.
+3. No `wrangler.toml` or `astro.config.mjs` change needed — the adapter and
+   the on-demand-rendering seam are already in place from the contact form's
+   work; a second on-demand route is additive, not a new architecture switch.
 
 ---
 
@@ -884,7 +941,9 @@ src/
     ContentSource.ts     # the seam: the interface templates + JSON-LD depend on
     sources/FileSource.ts# reads content collections -> ContentSource (co-author aware)
     jsonld.ts            # THE ENGINE: builds the schema.org @graph (nodes + named stubs)
-    leads/               # MailerLite / EmailOctopus adapters (Tier 2)
+    leads/               # MailerLite / EmailOctopus adapters (Tier 2, /api/subscribe -- not yet written)
+    email/               # EmailSender interface + Resend adapter (Tier 2, live -- /api/contact)
+    turnstile.ts         # Cloudflare Turnstile server-side verification (Tier 2, live)
   layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub) AND a
                          #   per-page node (title/description, isPartOf -> WebSite; WebPage
                          #   by default, or a more specific @type like CollectionPage via
@@ -894,7 +953,9 @@ src/
   pages/                 # route templates: index, about, books/[slug], series/[slug],
                          #   series/index (nav landing page), themes/[slug], events/index,
                          #   privacy, terms (legal collection, no JSON-LD), contact (static
-                         #   form shell, no JSON-LD; /api/contact is Tier 2, not yet written)
+                         #   form shell, no JSON-LD)
+    api/contact.ts        # LIVE Tier 2 endpoint: on-demand (prerender=false), Resend + Turnstile
+  env.d.ts                # types the `cloudflare:workers` env import (Tier 2 runtime vars/secrets)
 ```
 
 **The rules that make the structured data correct** (violating them is a silent

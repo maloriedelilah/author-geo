@@ -1,32 +1,50 @@
 # Cloudflare config for the author-geo template.
 #
-# Tier 1 (this file, as committed): static site deployed to Cloudflare Pages.
-# `astro.config.mjs` has `output: 'static'`; Pages serves the built `dist/`
-# directory directly — no Worker runtime, no bindings needed.
+# As of @astrojs/cloudflare v13+ (this repo is on v14), a Wrangler config
+# file is OPTIONAL, and `main` / `[assets]` are managed by the adapter
+# automatically — you only add a config file for things that need real
+# customization (a stable Worker `name`, KV/D1 bindings, etc.), per Astro's
+# own current docs (docs.astro.build/en/guides/integrations-guide/cloudflare
+# -> "Manual Install").
 #
-# Tier 2 (commented below): flips to Cloudflare Workers + D1 when dynamic
-# routes (lead-capture, `output: 'server'` + `@astrojs/cloudflare` adapter)
-# come online. Uncomment the relevant blocks together with the Tier-2 switch
-# in `astro.config.mjs`.
-
+# Do NOT hand-specify `main` or `[assets]` here. Earlier drafts of this file
+# tried exactly that (mirroring since-outdated guidance/examples floating
+# around for this adapter) and it breaks `astro build` outright: the
+# `@cloudflare/vite-plugin` resolves/validates the Wrangler config as part
+# of Astro's OWN internal build steps (not just at final `wrangler deploy`),
+# and a hand-written `main` pointing into `dist/` doesn't exist yet at that
+# point in a fresh build — real error: "The provided Wrangler config main
+# field ... doesn't point to an existing file." Separately, this repo
+# briefly also tried the older Cloudflare-Pages-style `pages_build_output_dir`
+# — that's now unsupported entirely (see the adapter's own changelog:
+# "Removed: Cloudflare Pages support") and hits its own real, currently-open
+# upstream bug (wrangler 4.98+ rejects the adapter's auto-generated "ASSETS"
+# binding name specifically when `pages_build_output_dir` is present — see
+# cloudflare/workers-sdk#14226, withastro/astro#16107). Bottom line: for
+# this adapter version, LESS config here is correct, not more.
+#
+# `astro.config.mjs` has `output: 'static'` + `adapter: cloudflare()`, with
+# only src/pages/api/*.ts opting into on-demand rendering via
+# `export const prerender = false` — every other route stays a prerendered
+# static file at zero per-request Workers cost.
 name = "author-geo"
 compatibility_date = "2026-07-21"
 
-# --- Tier 1: static Pages deploy ---
-pages_build_output_dir = "./dist"
+# `directory` / `binding` are deliberately NOT set here — the adapter
+# auto-manages those (see the note above). `not_found_handling` IS set
+# explicitly: Cloudflare's own docs on the Workers-static-assets product
+# ("Static Site Generation (SSG) and custom 404 pages") are explicit that
+# WITHOUT this, an unmatched URL does not reliably get a real 404 status
+# from the nearest 404.html — exactly the silent-200-everywhere gap PR #23
+# closed for the (now-unsupported) classic Pages product. Setting it here
+# keeps that fix intact under the new deploy model.
+[assets]
+not_found_handling = "404-page"
 
-# --- Tier 2: Workers + D1 (commented out for Tier 1) ---
-# Uncomment when `astro.config.mjs` switches to `output: 'server'` +
-# `adapter: cloudflare()`, i.e. when lead-capture / dynamic routes land.
-#
-# main = "./dist/_worker.js/index.js"
-# compatibility_flags = ["nodejs_compat"]
-#
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "author-geo-db"
-# database_id = "REPLACE_WITH_D1_DATABASE_ID"
-#
-# [assets]
-# binding = "ASSETS"
-# directory = "./dist"
+# --- Tier 2 forms: no bindings needed. Sessions get an auto-provisioned
+# "SESSION" KV namespace by default (the adapter's own default behavior,
+# unrelated to anything built here) — harmless and zero-setup, since
+# Cloudflare auto-provisions it on deploy.
+
+# D1 (data layer): deliberately still NOT part of this — decided against for
+# now (see README). Adding it later is just a [[d1_databases]] block here.
