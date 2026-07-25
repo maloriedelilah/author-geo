@@ -22,7 +22,7 @@ interface Props {
   title?: string;
   description?: string;
 }
-const { title = 'Contact', description } = Astro.props as Props;
+const { title, description } = Astro.props as Props;
 
 const turnstileSiteKey = import.meta.env.TURNSTILE_SITE_KEY;
 if (!turnstileSiteKey) {
@@ -32,7 +32,7 @@ if (!turnstileSiteKey) {
 }
 ---
 <form class="contact-form" method="post" action="/api/contact">
-  <h2>{title}</h2>
+  {title && <h2>{title}</h2>}
   {description && <p>{description}</p>}
 
   <p class="contact-form__hp" aria-hidden="true">
