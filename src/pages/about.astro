@@ -3,7 +3,7 @@
 // emitted HERE, exactly once, at @id = "{site}/about#<slug>". Every other page
 // (Base's WebSite.publisher, Book.author, Series.author, ...) references these same
 // @ids via a minimal named stub instead of re-emitting or bare-@id-referencing them.
-import Base from '../layouts/Base.astro';
+import Base from '@theme/layouts/Base.astro';
 import JsonLd from '../components/JsonLd.astro';
 import { FileSource } from '../lib/sources/FileSource';
 import { authorNode, graph } from '../lib/jsonld';

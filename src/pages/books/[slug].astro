@@ -5,9 +5,9 @@
 // DD-001 note: this page does NOT emit the full Person node anymore — that lives
 // exactly once on /about. It references each of the book's authors by @id + named
 // stub (bookNode's `authors` opt), co-author-safe via Book.authorSlugs.
-import Base from '../../layouts/Base.astro';
+import Base from '@theme/layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
-import CompsBlock from '../../components/CompsBlock.astro';
+import CompsBlock from '@theme/components/CompsBlock.astro';
 import { FileSource } from '../../lib/sources/FileSource';
 import { bookNode, breadcrumbNode, pageUrl, graph } from '../../lib/jsonld';
 import { externalAttrs } from '../../lib/links';

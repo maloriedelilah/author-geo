@@ -6,9 +6,9 @@
 // author blurb below is DISPLAY TEXT ONLY, linking to /about#<slug> where the
 // canonical full Person node lives exactly once. Emitting a second full Person
 // node (or even a bare @id) here would violate the identity spine, so: don't.
-import Base from '../layouts/Base.astro';
-import HeroSlideshow from '../components/HeroSlideshow.astro';
-import ComingSoonRow from '../components/ComingSoonRow.astro';
+import Base from '@theme/layouts/Base.astro';
+import HeroSlideshow from '@theme/components/HeroSlideshow.astro';
+import ComingSoonRow from '@theme/components/ComingSoonRow.astro';
 import { FileSource } from '../lib/sources/FileSource';
 import { siteConfig } from '../config';
 import { isFutureRelease, formatDate } from '../lib/date';
