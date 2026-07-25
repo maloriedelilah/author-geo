@@ -30,6 +30,19 @@
 name = "author-geo"
 compatibility_date = "2026-07-21"
 
+# CRITICAL: without this, every deploy WIPES the runtime variables/secrets
+# set in the Cloudflare dashboard (Settings > Variables & Secrets) — Wrangler
+# treats "no [vars] block here" as "there should be no vars", not "leave
+# whatever's in the dashboard alone", and deletes them on each deploy. This
+# repo has no [vars] block (env vars are runtime secrets, deliberately never
+# committed — see .env.example), so `keep_vars` is mandatory, not optional.
+# Confirmed via cloudflare/workers-sdk#8871 and direct experience on a real
+# deployed site built from this template: contact form secrets
+# (RESEND_API_KEY, TURNSTILE_SECRET_KEY, CONTACT_TO_EMAIL,
+# CONTACT_FROM_EMAIL) got silently deleted by routine code-only deploys
+# without this set.
+keep_vars = true
+
 # `directory` / `binding` are deliberately NOT set here — the adapter
 # auto-manages those (see the note above). `not_found_handling` IS set
 # explicitly: Cloudflare's own docs on the Workers-static-assets product
