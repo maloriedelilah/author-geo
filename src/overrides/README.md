@@ -60,6 +60,23 @@ The same mechanism covers layouts: `src/overrides/layouts/Base.astro` would
 shadow `src/layouts/Base.astro` in full, if you ever want to restructure the
 page shell itself rather than just one component inside it.
 
+> **⚠️ If you shadow `layouts/Base.astro`, you MUST keep its `<JsonLd
+> graph={siteGraph} />` render.** `Base.astro` is where the site-wide
+> `WebSite` (+ per-page `WebPage`/`CollectionPage`) JSON-LD graph is built
+> and rendered — it is the ONE place that structured data is emitted on
+> every single page. A full copy under `src/overrides/layouts/Base.astro`
+> is free to restructure the `<head>`/`<Header>`/`<Footer>`/chrome markup
+> however you like (that's legitimate presentation, and exactly what this
+> extension point is for), but if you delete or forget to carry over the
+> `<JsonLd .../>` render while editing your copy, every page on the site
+> silently stops emitting its site-wide schema.org data — a real, easy
+> mistake to make when restructuring a big file, and one `npm run build`
+> will NOT catch (it's a valid, buildable page either way). Always re-run
+> `npm run validate:ld` / `npm run validate:crossid` after shadowing
+> `Base.astro`, same as after any other structured-data-adjacent change.
+> More generally: never remove a `<JsonLd .../>` render from ANY shadowed
+> presentation file that has one.
+
 ## What is deliberately NOT overridable
 
 Two things are excluded from the `@theme` alias on purpose, and always

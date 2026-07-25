@@ -42,6 +42,7 @@ baked into every page.
 - [SEO basics: robots.txt, sitemap, 404](#seo-basics-robotstxt-sitemap-404)
 - [Social sharing: Open Graph & Twitter Cards](#social-sharing-open-graph--twitter-cards)
 - [Theming guide](#theming-guide) — every CSS variable, what it controls, how to do a full palette swap
+  (see also [`THEMING.md`](./THEMING.md) for selective component/layout overrides beyond tokens)
 - [Legal pages](#legal-pages-privacy--terms) — Privacy Policy & Terms of Use
 - [Contact form](#contact-form) — the static form + how to wire it to actually send email
 - [Validating your structured data](#validating-your-structured-data)
@@ -556,6 +557,13 @@ it has; none are required.
 
 ## Theming guide
 
+> **Need to change a component's actual markup/structure, not just colors,
+> fonts, or spacing — or restructure the whole page shell?** This section
+> covers the token layer only (the common case). For the full three-tier
+> system — tokens, selective component/layout shadowing via `src/overrides/`,
+> and the hard structured-data boundary that's never overridable — see
+> **[`THEMING.md`](./THEMING.md)**.
+
 `theme.mode` + `theme.accent` in `src/config.ts` (see [Configuration](#configuration)
 above) cover the two things an author is likely to want without touching CSS at
 all. Everything below is for going further — a full palette swap, a third theme,
@@ -936,7 +944,12 @@ asked to), this is the map — and the contract you must not break.
 src/
   content.config.ts     # THE CONTRACT: Zod schemas for every collection. Source of truth.
   config.ts             # author-editable behavior (site URL, leads provider, theme/nav/footer)
-  styles/theme.css       # the two built-in palettes (CSS custom properties) + base layout/type
+  styles/base.css        # UPSTREAM-owned structural/layout CSS (var()-consuming only)
+  styles/theme.css       # IMPLEMENTER-owned tokens: the two built-in palettes (CSS custom
+                         #   properties, colors/fonts/spacing) -- see THEMING.md (Tier 1)
+  overrides/              # IMPLEMENTER's selective component/layout shadows, resolved via
+                         #   the `@theme/...` Vite alias (vite-plugins/theme-override.mjs)
+                         #   -- see THEMING.md (Tier 2) and src/overrides/README.md
   lib/
     ContentSource.ts     # the seam: the interface templates + JSON-LD depend on
     sources/FileSource.ts# reads content collections -> ContentSource (co-author aware)

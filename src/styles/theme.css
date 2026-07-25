@@ -20,17 +20,6 @@
  * after this file too, so it wins over whatever's set here.
  */
 
-/* author-geo base styling + theme tokens.
- *
- * Two built-in palettes selected by `[data-theme="dark"|"light"]` on <html>
- * (set from siteConfig.theme.mode in Base.astro). An optional accent override
- * is applied inline by Base.astro as a `--accent` custom property, so an
- * author can retint without touching this file at all.
- *
- * This file also carries ALL base layout/typography — there was previously no
- * CSS in this repo at all, so "theme" needs a page to actually theme.
- */
-
 :root[data-theme="dark"] {
   --bg: #0b0e14;
   /* Was #12161f — only ~3-4% lighter than --bg, so any "elevated" surface
