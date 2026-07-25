@@ -4,10 +4,10 @@
 //
 // DD-001: no full Person node here — authors are referenced by @id + named stub
 // via seriesNode's `authors` param, co-author-safe via Series.authorSlugs.
-import Base from '../../layouts/Base.astro';
+import Base from '@theme/layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
-import CompsBlock from '../../components/CompsBlock.astro';
-import BookListItem from '../../components/BookListItem.astro';
+import CompsBlock from '@theme/components/CompsBlock.astro';
+import BookListItem from '@theme/components/BookListItem.astro';
 import { FileSource } from '../../lib/sources/FileSource';
 import { seriesNode, seriesReadingOrder, breadcrumbNode, bookId, pageUrl, graph } from '../../lib/jsonld';
 

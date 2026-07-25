@@ -2,9 +2,9 @@
 // Theme (hub) detail page. Mirrors books/[slug].astro and series/[slug].astro.
 // Route is /themes/<slug> (matches the live aeon14.com convention per the
 // manifest note); the underlying content collection is `hubs`.
-import Base from '../../layouts/Base.astro';
+import Base from '@theme/layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
-import CompsBlock from '../../components/CompsBlock.astro';
+import CompsBlock from '@theme/components/CompsBlock.astro';
 import { FileSource } from '../../lib/sources/FileSource';
 import { hubPageExtra, hubId, breadcrumbNode, bookId, pageUrl, graph } from '../../lib/jsonld';
 

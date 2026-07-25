@@ -3,7 +3,7 @@
 // entity), rendered straight from the `legal` collection so the author edits
 // markdown, not a template.
 import { getEntry, render } from 'astro:content';
-import Base from '../layouts/Base.astro';
+import Base from '@theme/layouts/Base.astro';
 
 const entry = await getEntry('legal', 'privacy');
 if (!entry) throw new Error('privacy.astro: no src/content/legal/*.md with slug "privacy" found');

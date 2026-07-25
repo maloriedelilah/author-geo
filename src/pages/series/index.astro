@@ -4,9 +4,9 @@
 // section. Emits only a BreadcrumbList of its own (Home -> Series); each
 // series' full BookSeries node lives once on its own /series/<slug> page
 // (DD-001) — this is a plain listing/navigation page otherwise.
-import Base from '../../layouts/Base.astro';
+import Base from '@theme/layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
-import BookListItem from '../../components/BookListItem.astro';
+import BookListItem from '@theme/components/BookListItem.astro';
 import { FileSource } from '../../lib/sources/FileSource';
 import { breadcrumbNode, pageUrl, graph } from '../../lib/jsonld';
 

@@ -2,7 +2,7 @@
 // Events listing. Tier-1 scope has no per-event detail page, so each Event's
 // canonical @id is anchored to this listing page itself (see eventId in
 // jsonld.ts) rather than a route of its own.
-import Base from '../../layouts/Base.astro';
+import Base from '@theme/layouts/Base.astro';
 import JsonLd from '../../components/JsonLd.astro';
 import { FileSource } from '../../lib/sources/FileSource';
 import { eventNode, graph } from '../../lib/jsonld';

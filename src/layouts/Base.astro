@@ -34,12 +34,25 @@
 // type-specific properties that more specific type needs (e.g. CollectionPage's
 // `about`/`mainEntity`). Ordinary pages pass none of these and get the
 // original plain-WebPage behavior, unchanged.
+// JsonLd is part of the structured-data engine (renders whatever graph a page
+// assembles into a <script type="application/ld+json"> tag) — deliberately
+// imported directly, NOT through the `@theme` alias. Authors have no
+// opinions on schema.org, and shadowing this would risk silently breaking
+// the validated structured-data contract (see src/overrides/README.md).
 import JsonLd from '../components/JsonLd.astro';
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
+// Header/Footer are pure presentation — routed through `@theme` so an
+// implementer can shadow either (or both) in src/overrides/components/
+// without touching this file. See src/overrides/README.md.
+import Header from '@theme/components/Header.astro';
+import Footer from '@theme/components/Footer.astro';
 import { authorId, namedStub, pageUrl } from '../lib/jsonld';
 import { FileSource } from '../lib/sources/FileSource';
 import { siteConfig } from '../config';
+// base.css (upstream-owned component/layout styling) FIRST, theme.css
+// (implementer-owned tokens) LAST — cascade order means any token
+// re-declared in theme.css always wins over base.css's defaults. See the
+// header comments in both files.
+import '../styles/base.css';
 import '../styles/theme.css';
 
 interface Props {
@@ -190,6 +203,10 @@ const siteGraph = {
       />
     )}
 
+    {/* REQUIRED: site-wide structured data (WebSite + per-page node). Do NOT
+        remove this render if you shadow this layout under
+        src/overrides/layouts/Base.astro — doing so silently drops the
+        site's schema.org data on every page. See src/overrides/README.md. */}
     <JsonLd graph={siteGraph} />
     {siteConfig.theme.accent && (
       <style set:html={`:root[data-theme="${siteConfig.theme.mode}"] { --accent: ${siteConfig.theme.accent}; }`} />
