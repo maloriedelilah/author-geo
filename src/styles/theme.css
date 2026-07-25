@@ -11,12 +11,19 @@
 
 :root[data-theme="dark"] {
   --bg: #0b0e14;
-  --bg-elevated: #12161f;
+  /* Was #12161f — only ~3-4% lighter than --bg, so any "elevated" surface
+     (.card, and the contact/subscribe forms living inside one) was nearly
+     indistinguishable from the page background. Bumped to a clearly
+     lighter surface tone while keeping the same blue-black hue. */
+  --bg-elevated: #1b2233;
   --text: #e8eaf0;
   --text-muted: #9aa3b5;
   --accent: #5fd3ff;
   --accent-contrast: #04141a;
-  --border: #232838;
+  /* Bumped alongside --bg-elevated for the same reason — a border that's
+     only marginally lighter than the surface it's outlining doesn't read as
+     an edge. */
+  --border: #323a52;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
@@ -246,6 +253,9 @@ main.wrap {
   border-radius: 10px;
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.25rem;
+  /* Extra separation from the page background beyond the border alone —
+     previously unset here (only .card img/.cover had a shadow). */
+  box-shadow: var(--shadow);
 }
 
 .card img,
