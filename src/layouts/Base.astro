@@ -48,12 +48,19 @@ import Footer from '@theme/components/Footer.astro';
 import { authorId, namedStub, pageUrl } from '../lib/jsonld';
 import { FileSource } from '../lib/sources/FileSource';
 import { siteConfig } from '../config';
-// base.css (upstream-owned component/layout styling) FIRST, theme.css
-// (implementer-owned tokens) LAST — cascade order means any token
-// re-declared in theme.css always wins over base.css's defaults. See the
-// header comments in both files.
+// CSS load order (THEMING.md): base.css (Tier 3, upstream-owned structural/
+// layout CSS) FIRST, theme.css (Tier 1, implementer-owned tokens ONLY) NEXT,
+// then '@theme-styles/site.css' (Tier B, implementer-owned free-form CSS,
+// OPTIONAL) LAST — cascade order means theme.css's tokens always win over
+// base.css's defaults, and a Tier B override (if the implementer created
+// one) always wins over both. The Tier B import is unconditional and always
+// succeeds even when src/overrides/styles/site.css doesn't exist — it
+// resolves to an empty stub in that case, via themeStylesOverridePlugin
+// (see vite-plugins/theme-styles-override.mjs and astro.config.mjs). See
+// the header comments in base.css/theme.css for the Tier 3/Tier 1 contract.
 import '../styles/base.css';
 import '../styles/theme.css';
+import '@theme-styles/site.css';
 
 interface Props {
   title: string;

@@ -12,7 +12,27 @@ smallest one that does the job:
 |---|---|---|
 | **1. Tokens** | Recolor / refont / respace the whole site | `src/styles/theme.css` only |
 | **2. Selective override** | Change one component or layout's actual markup/behavior | a copy under `src/overrides/` |
+| **2b. Free-form CSS** | Structural/layout CSS that isn't a token and doesn't belong in a shadowed component | `src/overrides/styles/site.css` (optional) |
 | **3. Hard boundary** | The structured-data contract | **never** — not overridable, by design |
+
+### The CSS load order, explicitly
+
+`Base.astro` imports exactly three stylesheets, always in this order:
+
+1. **`src/styles/base.css`** — Tier 3, upstream-owned, structural/layout CSS.
+   Never edit this directly (see its own header comment) — it's the one CSS
+   file with no shadow/override point at all, by design, so upstream can
+   keep improving it with zero conflict risk.
+2. **`src/styles/theme.css`** — Tier 1, implementer-owned, **tokens only**
+   (`:root`/`:root[data-theme=...]` custom-property declarations, nothing
+   else — see its own header comment).
+3. **`src/overrides/styles/site.css`** — Tier 2b, implementer-owned,
+   **free-form**, **optional**. Loads only if you create it; if you don't,
+   the import resolves to an empty stub and contributes nothing (see below).
+
+Cascade order means each later file's declarations win over the earlier
+ones' for the same property/selector — theme.css's tokens win over base.css's
+defaults, and a Tier 2b override (if present) wins over both.
 
 ---
 
@@ -28,6 +48,12 @@ same eight tokens (`--bg`, `--bg-elevated`, `--text`, `--text-muted`,
 `--accent`, `--accent-contrast`, `--border`, `--shadow`). `Base.astro` sets
 `data-theme` on `<html>` from `siteConfig.theme.mode` (`src/config.ts`), so
 whichever palette block matches wins.
+
+One token isn't theme-dependent and lives in a plain `:root { }` block
+instead (same value regardless of `data-theme`): **`--font-heading`** — the
+`h1`–`h4` heading font stack, consumed by `base.css`. Any token whose value
+shouldn't differ between palettes belongs in that plain `:root { }` block
+rather than being duplicated into both `[data-theme=...]` blocks.
 
 **To recolor/refont/respace the site:** edit the values inside the relevant
 `:root[data-theme="..."] { ... }` block directly. That's it — no component
@@ -98,6 +124,52 @@ your first override.
 
 ---
 
+## Tier 2b — Free-form CSS override (`src/overrides/styles/site.css`)
+
+Reach for this when you have **structural/layout CSS that isn't a token**
+(so it doesn't belong in `theme.css`, which is tokens-only) **and isn't
+worth a full component shadow** (e.g. a layout tweak like `.series-list-row`
+gap/alignment, or resizing `.get-book-section h2` — a rule, not a markup
+change). Editing `base.css` directly for this is a guaranteed
+`git pull upstream main` conflict; this tier exists so you never have to.
+
+### The mechanism: an empty-stub-fallback virtual module
+
+`Base.astro` unconditionally imports a fixed specifier, `@theme-styles/site.css`.
+Astro/Vite can't cleanly express "import this file only if it exists" as a
+static `import '...'` — a static import of a path that doesn't exist on disk
+is a hard build error, and there's no conditional-import syntax for CSS. So
+instead, a small Vite plugin (`vite-plugins/theme-styles-override.mjs`)
+resolves that specifier at build time to:
+
+1. `src/overrides/styles/site.css` — if you've created it, or
+2. an **empty virtual stylesheet** — if you haven't.
+
+Either way the import always succeeds — the build can never break over the
+override file's mere absence or presence — and because Base.astro imports it
+**after** both `base.css` and `theme.css`, your rules (if you have any) win
+by cascade over both.
+
+### Worked example
+
+```sh
+mkdir -p src/overrides/styles
+cat > src/overrides/styles/site.css <<'EOF'
+.series-list-row {
+  gap: 2rem;
+}
+EOF
+```
+
+No other file needs to change, and `git pull upstream main` never touches
+`src/overrides/**`, so this stays conflict-free the same way Tier 2 does.
+
+See [`src/overrides/styles/README.md`](./src/overrides/styles/README.md) for
+the full contract (this folder ships empty, same as
+`src/overrides/components/` and `src/overrides/layouts/`).
+
+---
+
 ## Tier 3 — The hard boundary (never overridable)
 
 Two things are **deliberately excluded** from the `@theme` alias, and always
@@ -165,6 +237,9 @@ Why this doesn't blow away your customizations:
   yours; unshadowed files silently pick up upstream's improvements for free
   the next time you build, because `@theme/...` still resolves through to
   them.
+- **Tier 2b:** same story — upstream never touches
+  `src/overrides/styles/site.css`; it's yours if you create it, and the
+  build is unaffected either way if you don't.
 - **Tier 3:** `src/lib/jsonld.ts` and `src/pages/*` are entirely upstream's,
   always — there is nothing of yours in them to lose.
 - **Content:** `src/content/**` and `src/config.ts` are yours and were
@@ -180,7 +255,7 @@ ownership boundary expressed as a machine-readable comment block (plus one
 | You may edit | You may NOT edit |
 |---|---|
 | `src/styles/theme.css` | `src/styles/base.css` |
-| `src/overrides/**` (your shadow copies) | `src/components/**` / `src/layouts/**` (the upstream originals — copy, don't edit in place) |
+| `src/overrides/**` (your shadow copies, incl. `src/overrides/styles/site.css`) | `src/components/**` / `src/layouts/**` (the upstream originals — copy, don't edit in place) |
 | `src/content/**` | `src/lib/jsonld.ts` |
 | `src/config.ts` | `src/pages/**` |
 

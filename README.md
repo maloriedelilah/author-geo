@@ -588,6 +588,7 @@ else needs to change.
 | `--accent-contrast` | Text color drawn *on top of* an accent-colored fill (currently unused by any filled component, but kept so a future button/badge has a correct contrast color ready) | `#04141a` | `#ffffff` |
 | `--border` | Header/footer border, `.card` border | `#232838` | `#e3e1da` |
 | `--shadow` | Cover image drop shadow (`.card img`, `.cover`) | `0 8px 24px rgba(0,0,0,0.4)` | `0 8px 24px rgba(20,20,20,0.08)` |
+| `--font-heading` | `h1`–`h4` heading font stack — same value in **both** themes (lives in a plain `:root { }` block, not per-theme) | `Georgia, "Iowan Old Style", "Times New Roman", serif` | *(same)* |
 
 ### Doing a full palette swap
 
@@ -615,13 +616,18 @@ variables, never a mode name directly.
 
 ### Fonts
 
-Not yet a `config.ts` setting — change the two `font-family` stacks directly in
-`theme.css`: the `body` rule (UI/body text — currently a system-font stack) and
-the `h1, h2, h3, h4` rule (headings — currently Georgia/serif, deliberately
-distinct from body for a "book" feel). If you want this configurable without a
-CSS edit, that's a reasonable follow-up: add `theme.fontBody`/`theme.fontHeading`
-to `config.ts` and inline them the same way `Base.astro` already inlines the
-accent override.
+Not yet a `config.ts` setting. The **heading** font (`h1, h2, h3, h4`) is a
+token — change `--font-heading` in `theme.css` directly (see the variable
+table above). The **body** font (UI/body text — currently a system-font
+stack) is still a literal in `src/styles/base.css`'s `body` rule, not yet
+promoted to a token; changing it means editing that upstream-owned file
+directly (a `git pull upstream main` conflict risk) until it's promoted the
+same way `--font-heading` was, or use the free-form CSS override slot
+(`src/overrides/styles/site.css`, see [`THEMING.md`](./THEMING.md#tier-2b--free-form-css-override-srcoverridesstylessitecss))
+to override `body`'s `font-family` without touching base.css at all. If you
+want the body font configurable without a CSS edit too, that's a reasonable
+follow-up: add `theme.fontBody` to `config.ts` and inline it the same way
+`Base.astro` already inlines the accent override.
 
 ---
 
@@ -950,6 +956,10 @@ src/
   overrides/              # IMPLEMENTER's selective component/layout shadows, resolved via
                          #   the `@theme/...` Vite alias (vite-plugins/theme-override.mjs)
                          #   -- see THEMING.md (Tier 2) and src/overrides/README.md
+  overrides/styles/       # IMPLEMENTER's optional free-form CSS override (site.css), resolved
+                         #   via the `@theme-styles/site.css` virtual specifier (empty-stub
+                         #   fallback if absent) -- see THEMING.md (Tier 2b) and
+                         #   src/overrides/styles/README.md
   lib/
     ContentSource.ts     # the seam: the interface templates + JSON-LD depend on
     sources/FileSource.ts# reads content collections -> ContentSource (co-author aware)

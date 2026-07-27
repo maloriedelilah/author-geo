@@ -1,4 +1,14 @@
-/* author-geo BASE STYLING -- upstream-owned.
+/* author-geo BASE STYLING -- upstream-owned. TIER 3 (THEMING.md): this file
+ * is NOT overridable/shadowable and is never meant to be hand-edited by an
+ * implementer -- pull upstream improvements to it via `git pull upstream
+ * main`, same as src/lib/jsonld.ts and src/pages/*. It exists as a single,
+ * un-shadowed file (there is no @theme alias for stylesheets pointed at it)
+ * precisely so upstream can keep evolving structural/layout CSS here with
+ * zero conflict risk against an implementer's customizations, which live in:
+ *   - src/styles/theme.css              (Tier 1 -- tokens only)
+ *   - src/overrides/styles/site.css     (Tier B -- free-form CSS, optional)
+ *   - src/overrides/**                  (Tier 2 -- component/layout shadows)
+ * See THEMING.md for the full picture and the CSS load order.
  *
  * Resets, layout structure, and every component's visual rules. An
  * implementer should never need to edit this file directly: every color,
@@ -14,6 +24,12 @@
  * just the ones they want to change in src/overrides/, leaving this file
  * (and every component they don't touch) exactly as upstream ships it --
  * which is what keeps `git pull upstream main` conflict-free.
+ *
+ * Have structural/layout CSS that ISN'T a token and doesn't belong in
+ * theme.css (which is tokens-ONLY)? Don't add it here either -- put it in
+ * the optional, implementer-owned src/overrides/styles/site.css instead,
+ * which loads after this file AND theme.css. See THEMING.md's "Tier B" and
+ * src/overrides/styles/README.md.
  */
 
 * {
@@ -53,7 +69,11 @@ body {
 }
 
 h1, h2, h3, h4 {
-  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  /* Promoted to a token (--font-heading, theme.css) so an implementer can
+     change the heading typeface without editing this upstream-owned file --
+     see theme.css's header comment. Default value is byte-identical to the
+     literal this replaced, so this is a pure refactor with no visual change. */
+  font-family: var(--font-heading);
   line-height: 1.25;
   margin: 0 0 0.5em;
 }

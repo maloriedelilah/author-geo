@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import cloudflare from '@astrojs/cloudflare';
 import { themeOverridePlugin } from './vite-plugins/theme-override.mjs';
+import { themeStylesOverridePlugin } from './vite-plugins/theme-styles-override.mjs';
 
 // `site` MUST be a real absolute URL — jsonld.ts builds every absolute @id
 // (author, book, series) off `import.meta.env.SITE`. An unset/placeholder
@@ -51,7 +52,14 @@ export default defineConfig({
   // and src/overrides/README.md for the full contract. Deliberately NOT a
   // plain `resolve.alias` entry -- a static alias can't express the
   // override-if-present-else-base fallback this needs.
+  //
+  // themeStylesOverridePlugin backs the separate `@theme-styles/site.css`
+  // virtual specifier -- the free-form CSS override slot (Tier B, THEMING.md)
+  // -- which resolves to src/overrides/styles/site.css if it exists, else an
+  // empty virtual stylesheet, so Base.astro can import it unconditionally
+  // with no build break when the override is absent. See
+  // vite-plugins/theme-styles-override.mjs for the full reasoning.
   vite: {
-    plugins: [themeOverridePlugin()],
+    plugins: [themeOverridePlugin(), themeStylesOverridePlugin()],
   },
 });
