@@ -4,10 +4,14 @@
 # (theming + content) zone, so `git pull upstream main` stays conflict-free.
 #
 # Implementer-owned — edit these freely, upstream never touches them:
-#   src/overrides/**        selective component/layout shadows (@theme alias)
-#   src/styles/theme.css    re-theming tokens (colors/fonts/spacing)
-#   src/content/**          your books/series/author/hubs/events content
-#   src/config.ts           author-editable site config (theme mode, nav, ...)
+#   src/overrides/**              selective component/layout shadows (@theme
+#                                  alias) PLUS the free-form CSS override slot
+#                                  at src/overrides/styles/site.css (the
+#                                  @theme-styles/site.css virtual specifier,
+#                                  see vite-plugins/theme-styles-override.mjs)
+#   src/styles/theme.css          re-theming tokens (colors/fonts/spacing)
+#   src/content/**                your books/series/author/hubs/events content
+#   src/config.ts                 author-editable site config (theme mode, nav, ...)
 #
 # Upstream-owned — do not edit; pull updates via `git pull upstream main`:
 #   everything else in src/, in particular:
