@@ -26,6 +26,19 @@ interface WorkerEnv {
   // build-time import.meta.env var, read in ContactForm.astro's
   // frontmatter — not a Workers runtime secret) instead.
   TURNSTILE_SECRET_KEY: string;
+
+  // Newsletter/CRM signup (see src/pages/api/subscribe.ts +
+  // src/lib/leads/factory.ts). Only the block matching
+  // siteConfig.leads.provider (src/config.ts) needs to actually be set —
+  // the factory throws a specific, loud config error if the active
+  // provider's key is missing, rather than silently no-op'ing. Declared as
+  // optional (`?`) here because exactly one set is required, not both, and
+  // a downstream custom provider (src/overrides/providers/<name>.ts) may
+  // read entirely different secret names the factory hands it via the raw
+  // env object — this interface only documents the two shipped adapters.
+  EMAILOCTOPUS_API_KEY?: string;
+  EMAILOCTOPUS_LIST_ID?: string;
+  MAILERLITE_API_KEY?: string;
 }
 
 declare module 'cloudflare:workers' {

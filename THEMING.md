@@ -118,6 +118,19 @@ whole page shell (head/header/footer wrapper) rather than just one component
 inside it. **If you do this, see the safety warning in the next section —
 it is the one thing you must not drop.**
 
+This is the same mechanism `ContactForm.astro` (`/contact`) and
+`SubscribeForm.astro` (home page) are already routed through — both are
+imported as `@theme/components/{Contact,Subscribe}Form.astro`, so restyling
+or restructuring either one's markup (e.g. reordering fields, changing the
+honeypot approach, adding a consent checkbox) is the exact same
+copy-to-`src/overrides/components/`-and-edit workflow as the `Header.astro`
+example above. Their actual submit behavior (which endpoint they POST to,
+anti-spam checks, provider wiring) lives server-side in
+`src/pages/api/{contact,subscribe}.ts` and `src/lib/{email,leads}/` — see
+[NEWSLETTER.md](./NEWSLETTER.md) and the README's Contact form section for
+that side of things. Shadowing the component doesn't touch the endpoint,
+and vice versa — the two are independent seams by design.
+
 Full contract (what's aliasable, what a shadow file needs to preserve) lives
 in [`src/overrides/README.md`](./src/overrides/README.md) — read it before
 your first override.

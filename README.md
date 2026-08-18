@@ -12,12 +12,13 @@ baked into every page.
 
 - **Tier 1:** a static site (`output: 'static'`) — books, series, themes, events,
   about, legal — deployed to **Cloudflare Workers** (static assets).
-- **Tier 2 (contact form -- live; newsletter signup -- deferred, seam in place):**
-  the contact form's `/api/contact` endpoint is real and wired to **Resend** +
-  **Cloudflare Turnstile** (see [Contact form](#contact-form)). The newsletter
-  form still ships as inert static markup -- its `/api/subscribe` endpoint isn't
-  written yet (see [Tier 2](#tier-2--whats-deferred)). Everything else on the
-  site stays a plain prerendered static page at zero per-request cost -- only
+- **Tier 2 (contact form + newsletter signup -- both live):** the contact
+  form's `/api/contact` endpoint is real and wired to **Resend** + **Cloudflare
+  Turnstile** (see [Contact form](#contact-form)); the newsletter form's
+  `/api/subscribe` endpoint is real too, wired to a pluggable **MailerLite** /
+  **EmailOctopus** adapter with a downstream-extensible custom-provider slot
+  (see [Newsletter signup](#newsletter-signup)). Everything else on the site
+  stays a plain prerendered static page at zero per-request cost -- only
   `/api/*` runs on demand.
 
 > **Deploy target note (2026-07-24):** this repo now deploys via Cloudflare's
@@ -44,10 +45,10 @@ baked into every page.
 - [Theming guide](#theming-guide) — every CSS variable, what it controls, how to do a full palette swap
   (see also [`THEMING.md`](./THEMING.md) for selective component/layout overrides beyond tokens)
 - [Legal pages](#legal-pages-privacy--terms) — Privacy Policy & Terms of Use
-- [Contact form](#contact-form) — the static form + how to wire it to actually send email
+- [Contact form](#contact-form) — live, sends email via Resend + Turnstile
+- [Newsletter signup](#newsletter-signup) — live, pluggable MailerLite/EmailOctopus/custom CRM adapter
 - [Validating your structured data](#validating-your-structured-data)
 - [Deploying to Cloudflare](#deploying-to-cloudflare)
-- [Tier 2 — what's deferred](#tier-2--whats-deferred)
 - [For developers / AI editors](#for-developers--ai-editors) — architecture & the contract
 - [The design decisions (DDs)](#the-design-decisions-that-govern-this-repo)
 
@@ -335,8 +336,12 @@ leads: {
 }
 ```
 
-This selects which adapter the newsletter form uses. The signup **endpoint** is
-Tier 2 (see below); the choice is wired now so it's ready.
+This selects which adapter the newsletter form uses. `mailerlite` and
+`emailoctopus` ship as reference adapters (`src/lib/leads/`); the signup
+**endpoint** (`/api/subscribe`) is live -- see
+[Newsletter signup](#newsletter-signup) for the required secrets, the
+anti-spam handling, and how to add a third/custom provider without touching
+this repo's own files.
 
 ### 4. Site chrome — theme, header, nav, footer (`src/config.ts`)
 
@@ -476,8 +481,9 @@ Copy `.env.example` to `.env` for local dev/build-testing. Two independent
 groups, at different stages:
 
 - **Newsletter** (`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` +
-  `EMAILOCTOPUS_LIST_ID`) — still **inert**; consumed only once
-  `/api/subscribe` is written (see [Tier 2](#tier-2--whats-deferred)).
+  `EMAILOCTOPUS_LIST_ID`) — **live**, consumed by `/api/subscribe` right now
+  (see [Newsletter signup](#newsletter-signup) for which one is required,
+  matching `siteConfig.leads.provider`).
 - **Contact form** (`RESEND_API_KEY`, `CONTACT_FROM_EMAIL`, `CONTACT_TO_EMAIL`,
   `TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY`) — **live**, consumed by
   `/api/contact` right now (see [Contact form](#contact-form) for the full
@@ -701,9 +707,101 @@ changes — see [For developers](#for-developers--ai-editors).
 **Why `Astro.locals.runtime.env` doesn't appear anywhere in this code:** it was
 removed in this adapter's current major. Runtime env vars/secrets are read via
 `import { env } from 'cloudflare:workers'` instead (see `src/env.d.ts` and
-`src/pages/api/contact.ts`) — if you're extending this endpoint or writing
-`/api/subscribe`, use that pattern, not the older one you may find in
-older tutorials/AI training data.
+`src/pages/api/contact.ts` — the same pattern is used by
+`src/pages/api/subscribe.ts`, see [Newsletter signup](#newsletter-signup)) —
+if you're extending either endpoint or adding a new on-demand route, use that
+pattern, not the older one you may find in older tutorials/AI training data.
+
+---
+
+## Newsletter signup
+
+**See [`NEWSLETTER.md`](./NEWSLETTER.md) for the full standalone reference**
+(request flow, configuration table, adding a custom CRM/ESP provider). Summary:
+
+**Live.** The home page's `SubscribeForm` (`src/components/SubscribeForm.astro`,
+imported via `@theme/components/SubscribeForm.astro` — see
+[Theming guide](#theming-guide) / [`THEMING.md`](./THEMING.md) to restyle or
+restructure it) POSTs to a real, working `src/pages/api/subscribe.ts` — an
+on-demand Cloudflare Workers route (`export const prerender = false`) that
+hands the submission to a pluggable lead-adapter factory. Same deploy model
+as the contact form: every other route stays a plain prerendered static file
+(see the deploy-model callout in
+[Deploying to Cloudflare](#deploying-to-cloudflare)) — this is a second
+on-demand route, not a new architecture switch.
+
+**Anti-spam, cheapest check first** (mirrors the contact form's ordering —
+see [Contact form](#contact-form) for why cheapest-first matters):
+1. **Honeypot** — the hidden `hp_check` field. Filled in -> the endpoint logs
+   the drop and returns a *fake* success (no signal to the bot it was caught),
+   with no provider call made.
+2. **Email format check** — a plain, deliberately-not-RFC-5322-complete regex
+   (same bar as a browser's own `<input type="email">`), enforced server-side
+   since this endpoint is reachable directly, not only through the browser
+   form. A missing/malformed address is a real `400`.
+3. **Provider call** (`src/lib/leads/factory.ts` → the configured adapter) —
+   only reached once both of the above pass. A misconfigured provider (unset
+   `siteConfig.leads.provider`, missing secret) is a real `500`, logged with a
+   specific, actionable message; a real provider API rejection is a real
+   `502`. Nothing here ever swallows an error into a fake `{ ok: true }`.
+
+**Which provider is active is a CONFIG choice, not an env var** —
+`siteConfig.leads.provider` in `src/config.ts` (`'mailerlite'` |
+`'emailoctopus'` | a custom name, see below). You only need to fill in the
+`.env` block matching whichever one you picked.
+
+**Required config, all in `.env.example`:**
+
+| Var | Where it's set | Secret? | Required when... |
+|-----|----------------|---------|-------------------|
+| `MAILERLITE_API_KEY` | Cloudflare Worker env var | **yes** | `siteConfig.leads.provider === 'mailerlite'` |
+| `EMAILOCTOPUS_API_KEY` | Cloudflare Worker env var | **yes** | `siteConfig.leads.provider === 'emailoctopus'` |
+| `EMAILOCTOPUS_LIST_ID` | Cloudflare Worker env var | no, but private | `siteConfig.leads.provider === 'emailoctopus'`, unless a per-form `listId` prop is supplied instead |
+
+**The two shipped adapters** (`src/lib/leads/{mailerlite,emailoctopus}.ts`)
+were re-checked against each provider's *current* API before this endpoint
+was wired up (not assumed from older docs/training data):
+- **EmailOctopus** — targets the current v2 API; supports `groups`/`tags`
+  (`lead.groups`, resolved from a per-form `groupId`/`listId` prop or
+  `siteConfig.leads.groups`) and single-vs-double opt-in via
+  `siteConfig.leads.doubleOptIn` (`PENDING` vs `SUBSCRIBED` status).
+- **MailerLite** — targets the current API; `doubleOptIn` has **no**
+  per-request equivalent here — it's a group-dashboard setting in
+  MailerLite's own UI, not something this endpoint can toggle per call.
+
+**Adding a custom provider** (referenced from `src/config.ts` and
+`src/lib/leads/factory.ts`'s own comments): a fork can add a third (fourth,
+...) CRM/ESP with **zero edits to any upstream file**, by dropping ONE file
+at `src/overrides/providers/<name>.ts` that exports a factory function named
+`<name>` (matching the file's own base name) with the shape:
+
+```ts
+import type { LeadAdapter } from '../../lib/leads/types';
+import type { LeadProviderEnv, LeadTargetOverrides } from '../../lib/leads/factory';
+
+export function myCrm(
+  env: LeadProviderEnv & Record<string, string | undefined>,
+  overrides: LeadTargetOverrides,
+): LeadAdapter {
+  // read your own secret name(s) off `env`, return a LeadAdapter
+}
+```
+
+then set `siteConfig.leads.provider = 'myCrm'` in `src/config.ts`. The
+factory (`getLeadAdapter`) discovers every file under
+`src/overrides/providers/` at **build time** via Vite's `import.meta.glob`
+(not a runtime filesystem check like the `@theme/...` component-override
+plugin uses — Cloudflare Workers have no runtime filesystem, so that
+mechanism isn't available here) and picks whichever one's filename matches
+the configured provider name. This survives `git pull upstream main`
+exactly like a shadowed component under `src/overrides/components/` does —
+your file, upstream's factory, never the same file.
+
+**Why `Astro.locals.runtime.env` doesn't appear anywhere in this code:**
+same reason as the contact form — see [Contact form](#contact-form)'s
+writeup. Runtime env vars/secrets are read via
+`import { env } from 'cloudflare:workers'` (see `src/env.d.ts` and
+`src/pages/api/subscribe.ts`).
 
 ---
 
@@ -909,38 +1007,6 @@ Use this for local one-off deploys or a custom CI pipeline.
 
 ---
 
-## Tier 2 — what's deferred
-
-**The contact form is live** (`ContactForm` → `/api/contact`, real, sends via
-Resend — see [Contact form](#contact-form)). **The newsletter form is still
-deferred**: `SubscribeForm` ships as static markup and POSTs to
-`/api/subscribe`, which doesn't exist yet.
-
-Getting the contact form live did **not** require the "flip to `output:
-'server'` for everything" step this section originally described. That
-approach is deliberately avoided (see `astro.config.mjs`'s own comment): the
-site stays `output: 'static'`, with only `/api/contact` opting into on-demand
-rendering via `export const prerender = false`. Every book/series/theme/hub
-page is still a zero-cost prerendered file. Adding `/api/subscribe` follows
-the exact same pattern — it does **not** need any further "flip" either:
-
-To bring `/api/subscribe` online:
-1. Add `src/pages/api/subscribe.ts` — the lead-capture adapters under
-   `src/lib/leads/` already exist; mirror `src/pages/api/contact.ts`'s shape
-   (`export const prerender = false`, read env vars via
-   `import { env } from 'cloudflare:workers'` — **not**
-   `Astro.locals.runtime.env`, which is removed in this adapter's current
-   major; see `src/env.d.ts`'s comment and the [Contact form](#contact-form)
-   section for why).
-2. Set `MAILERLITE_API_KEY` (or `EMAILOCTOPUS_API_KEY` +
-   `EMAILOCTOPUS_LIST_ID`, matching `siteConfig.leads.provider` in
-   `src/config.ts`) as a Cloudflare **Worker** environment variable/secret.
-3. No `wrangler.toml` or `astro.config.mjs` change needed — the adapter and
-   the on-demand-rendering seam are already in place from the contact form's
-   work; a second on-demand route is additive, not a new architecture switch.
-
----
-
 ## For developers / AI editors
 
 The engine is small and layered. If you're modifying the code (or you're an AI
@@ -964,7 +1030,7 @@ src/
     ContentSource.ts     # the seam: the interface templates + JSON-LD depend on
     sources/FileSource.ts# reads content collections -> ContentSource (co-author aware)
     jsonld.ts            # THE ENGINE: builds the schema.org @graph (nodes + named stubs)
-    leads/               # MailerLite / EmailOctopus adapters (Tier 2, /api/subscribe -- not yet written)
+    leads/               # MailerLite / EmailOctopus adapters + factory.ts (Tier 2, live -- /api/subscribe)
     email/               # EmailSender interface + Resend adapter (Tier 2, live -- /api/contact)
     turnstile.ts         # Cloudflare Turnstile server-side verification (Tier 2, live)
   layouts/Base.astro     # emits the sitewide WebSite node (+ publisher named stub) AND a
