@@ -78,9 +78,19 @@ export const siteConfig = {
   },
 
   leads: {
-    provider: 'mailerlite' as 'mailerlite' | 'emailoctopus',
-    doubleOptIn: true,        // config option — single vs double opt-in
-    groups: [] as string[],
+    // 'mailerlite' | 'emailoctopus' ship as reference adapters (src/lib/leads/).
+    // A fork can add a third (fourth, ...) provider by dropping ONE file at
+    // src/overrides/providers/<name>.ts (see src/lib/leads/factory.ts's own
+    // header comment + README's "Adding a custom provider" section) and
+    // setting provider to that same <name> here -- no upstream file edited.
+    // The `(string & {})` union member keeps 'mailerlite'/'emailoctopus'
+    // autocompleting as before while still accepting any custom name.
+    provider: 'mailerlite' as 'mailerlite' | 'emailoctopus' | (string & {}),
+    doubleOptIn: true,        // config option — single vs double opt-in (EmailOctopus:
+                               // PENDING vs SUBSCRIBED status; MailerLite has no per-call
+                               // equivalent -- it's a group-level dashboard setting there)
+    groups: [] as string[],   // provider list/group IDs (MailerLite group IDs directly;
+                               // for EmailOctopus these become contact tags)
   },
 
   // --- Social sharing --------------------------------------------------
