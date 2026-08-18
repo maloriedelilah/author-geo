@@ -10,6 +10,7 @@ import Base from '@theme/layouts/Base.astro';
 import HeroSlideshow from '@theme/components/HeroSlideshow.astro';
 import ComingSoonRow from '@theme/components/ComingSoonRow.astro';
 import SeriesTeaser from '@theme/components/SeriesTeaser.astro';
+import SubscribeForm from '@theme/components/SubscribeForm.astro';
 import { FileSource } from '../lib/sources/FileSource';
 import { siteConfig } from '../config';
 import { isFutureRelease, formatDate } from '../lib/date';
@@ -125,4 +126,19 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
       </div>
     </section>
   )}
+
+  {/* Newsletter signup placed last deliberately, so it reads as
+    a closing "stay in touch" CTA after a reader has already seen the books/
+    series/author sections above, not a first-thing interruption. Imported
+    via @theme so an implementer can shadow it exactly like every other
+    presentation component (src/overrides/components/SubscribeForm.astro) —
+    see THEMING.md. The endpoint (/api/subscribe), provider adapters, and
+    anti-spam handling are documented in NEWSLETTER.md.
+  */}
+  <section aria-label="Newsletter signup" class="card">
+    <SubscribeForm
+      title="Stay in the loop"
+      description="Get an email when a new book releases — no spam, unsubscribe anytime."
+    />
+  </section>
 </Base>
