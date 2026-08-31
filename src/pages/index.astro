@@ -135,10 +135,12 @@ const truncatedBio = primaryAuthor && primaryAuthor.bio.length > BIO_TRUNCATE_CH
     see THEMING.md. The endpoint (/api/subscribe), provider adapters, and
     anti-spam handling are documented in NEWSLETTER.md.
   */}
-  <section aria-label="Newsletter signup" class="card">
-    <SubscribeForm
-      title="Stay in the loop"
-      description="Get an email when a new book releases — no spam, unsubscribe anytime."
-    />
-  </section>
+  {siteConfig.leads.provider && (
+    <section aria-label="Newsletter signup" class="card">
+      <SubscribeForm
+        title="Stay in the loop"
+        description="Get an email when a new book releases — no spam, unsubscribe anytime."
+      />
+    </section>
+  )}
 </Base>

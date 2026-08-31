@@ -1,8 +1,46 @@
 import { defineConfig } from 'astro/config';
+import { loadEnv } from 'vite';
 import sitemap from '@astrojs/sitemap';
 import cloudflare from '@astrojs/cloudflare';
 import { themeOverridePlugin } from './vite-plugins/theme-override.mjs';
 import { themeStylesOverridePlugin } from './vite-plugins/theme-styles-override.mjs';
+
+// Read env the way Astro/Vite do (merges .env files + the real process env),
+// so this works whether TURNSTILE_SITE_KEY comes from a local .env or a
+// Cloudflare build variable. Empty prefix ('') loads ALL vars, not just
+// PUBLIC_-prefixed ones.
+const { TURNSTILE_SITE_KEY } = loadEnv(process.env.NODE_ENV || 'production', process.cwd(), '');
+
+// The contact form is OPT-IN. /contact is injected only when TURNSTILE_SITE_KEY
+// (the public Turnstile site key the widget needs) is set at build time.
+// Without it the page is simply not built — the build SUCCEEDS and logs why —
+// so a fresh clone deploys with zero secrets configured. The page lives at
+// src/pages/_contact.astro (underscore-prefixed so Astro doesn't auto-route
+// it); this integration maps /contact to it when enabled. Turn the form on by
+// setting TURNSTILE_SITE_KEY (a build variable) plus the Tier 2 runtime
+// secrets — see README "Contact form". The header hides its /contact nav link
+// under the same condition (src/components/Header.astro).
+function contactRouteIntegration() {
+  return {
+    name: 'contact-route',
+    hooks: {
+      'astro:config:setup': ({ injectRoute, logger }) => {
+        if (TURNSTILE_SITE_KEY) {
+          injectRoute({
+            pattern: '/contact',
+            entrypoint: './src/pages/_contact.astro',
+            prerender: true,
+          });
+        } else {
+          logger.warn(
+            'Contact form disabled: TURNSTILE_SITE_KEY is unset, so /contact was not built. ' +
+              'Set it (a public Turnstile site key) plus the Tier 2 runtime secrets to enable it — see README "Contact form".',
+          );
+        }
+      },
+    },
+  };
+}
 
 // `site` MUST be a real absolute URL — jsonld.ts builds every absolute @id
 // (author, book, series) off `import.meta.env.SITE`. An unset/placeholder
@@ -44,7 +82,7 @@ export default defineConfig({
     // environments' network restrictions can trip up.
     prerenderEnvironment: 'node',
   }),
-  integrations: [sitemap()],
+  integrations: [sitemap(), contactRouteIntegration()],
   // Backs the `@theme/...` import alias (layouts + components import
   // presentation this way instead of a relative path) -- resolves to an
   // implementer's src/overrides/<rel> shadow if one exists, else falls back
