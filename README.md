@@ -48,6 +48,7 @@ baked into every page.
 - [Contact form](#contact-form) — live, sends email via Resend + Turnstile
 - [Newsletter signup](#newsletter-signup) — live, pluggable MailerLite/EmailOctopus/custom CRM adapter
 - [Validating your structured data](#validating-your-structured-data)
+- [Getting the repo onto GitHub](#getting-the-repo-onto-github) — the push path from an AI session
 - [Deploying to Cloudflare](#deploying-to-cloudflare)
 - [For developers / AI editors](#for-developers--ai-editors) — architecture & the contract
 - [The design decisions (DDs)](#the-design-decisions-that-govern-this-repo)
@@ -936,6 +937,49 @@ Run it alongside (not instead of) `validate:ld` — they catch different bugs:
 | Scope | within one page | across all pages |
 | Catches | dangling `{@id}` references, malformed JSON | the same `@id` asserting different data on different pages |
 | Would've caught the `WebSite.name` bug? | No (well-formed on every single page) | Yes (exactly what it's built for) |
+
+---
+
+## Getting the repo onto GitHub
+
+Deploying (below) assumes the repo is already on GitHub. If you're building this
+with an AI in a cloud session, getting it *there* is the step that trips people
+up — so here's what works and what doesn't.
+
+**What doesn't:** a plain `git push` from a cloud sandbox is intercepted by a git
+proxy that only allows repositories pre-authorized for that session. An
+un-authorized repo gets a `403` ("not in this session's authorized repository
+set"), and there is currently no in-product way to authorize one.
+**claude.ai/code hits the same wall** — it is *not* a way around this. Don't
+burn time on either.
+
+**What works: push from the author's own machine.** If the AI has a shell on
+your computer (Cowork's device tools, a local terminal, etc.), it should clone,
+commit, and push from *there*. That traffic originates on your machine, not the
+sandbox, so the proxy never sees it — and it's ordinary native git, which is
+fast and handles the binary cover images a text-only connector can't. Three
+things to get right:
+
+- **Clone into a native folder, not a synced/mounted one.** Cloning into a
+  Windows folder mounted through a Linux VM (or a cloud-drive folder) trips
+  git's config-lock and fails mid-clone. Clone somewhere plain and local.
+- **Supply a PAT for the push.** A fresh shell has no stored GitHub
+  credentials, so the push needs a token (below), and it may need re-supplying
+  each session.
+- **Deletes may be blocked** under a mounted folder — a non-issue for a normal
+  push, just don't be surprised by it.
+
+**The text-only GitHub connector (the GitHub MCP)** creates and updates *text*
+files through the API, which dodges the proxy — but it **cannot push binary
+files** (your covers) and commits one file per API call, so it's slow. A
+reasonable fallback for a quick text edit; the wrong tool for the first push of
+a whole site.
+
+**Making the PAT.** GitHub → Settings → Developer settings → Fine-grained tokens
+→ Generate. Scope it to **only this repo**, grant **Contents: read/write**, and
+add **Workflows: read/write** *only* if something will write under
+`.github/workflows/`. A short expiry is fine — treat the token as disposable and
+revoke it once the site is up.
 
 ---
 

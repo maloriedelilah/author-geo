@@ -5,7 +5,40 @@ not a tour. The `README.md` is the reference (what the fields mean, how to deplo
 this file is the **loop you run** to add or change content correctly and prove it
 before you commit.
 
-If you read nothing else, read these five rules and the validation gate.
+If you read nothing else, read these five rules and the validation gate. But if
+you're standing up a **new** site, run the intake below *first* — every one of
+its items, skipped, turns into a failed deploy or a silently-broken form hours
+later, which is exactly the tax that content-first builds keep paying.
+
+---
+
+## Phase 0 — Intake (new sites only, before you write any content)
+
+Settle these *with the author* up front. They decide what the build needs; none
+of them are things to discover as a red build on deploy day.
+
+1. **Domain.** The final URL (e.g. `orion.example.com`). It sets `siteUrl` in
+   `src/config.ts` **and** `site` in `astro.config.mjs` — both, or the JSON-LD
+   @ids, the sitemap, and robots.txt disagree.
+2. **Contact form? (opt-in.)** If yes, the author needs a Cloudflare Turnstile
+   widget (site key + secret) and a Resend account with a verified sending
+   domain (API key, a `from@` on that domain, and a destination inbox). If no,
+   do nothing — a missing `TURNSTILE_SITE_KEY` just drops `/contact`, it no
+   longer breaks the build.
+3. **Newsletter signup? (opt-in.)** If yes, pick the ESP **now** — `mailerlite`
+   or `emailoctopus` — set `siteConfig.leads.provider`, and get its API key. If
+   no, leave `provider` unset and the signup isn't rendered. "Choose the ESP
+   later" is how you end up with a form that 500s in production.
+4. **Covers.** Every book needs a real cover **committed to the repo** — never
+   fetched at build from an external URL, which fails the deploy silently the
+   day that URL changes. Collect the images (or the URLs to pull them from) now.
+5. **GitHub + push path.** Confirm the repo exists (create it, or use the
+   template's "Use this template"), the machine has `node`/`npm`/`git`, and a
+   fine-grained PAT is ready. This is the item that has historically eaten the
+   most time — settle it before you write a word of content, not after. See
+   **Phase 3 — Deploying** for the push mechanics.
+
+Write each decision into config as it's made; don't batch them for the end.
 
 ---
 
@@ -160,5 +193,47 @@ build` (Zod frontmatter validation) is the minimum bar before committing.
   `ld+json` blocks. Ground truth beats assumption.
 - A design rule? → the five rules above and `README.md`. If a rule seems wrong to you,
   surface it to the maintainer — don't edit around it.
-- Deployment? → `README.md` (Cloudflare Workers static assets, mostly-static
-  build — only `/api/*` runs on demand; see the deploy-model callout there).
+- Deployment? → **Phase 3** below, and `README.md` → "Getting the repo onto
+  GitHub" + "Deploying to Cloudflare".
+
+---
+
+## Phase 3 — Deploying (the handoff)
+
+Two parts, and the first is the one that historically goes wrong: get the repo
+onto GitHub, then point Cloudflare at it.
+
+### Getting the repo onto GitHub — from a cloud/agent session
+
+A plain `git push` from a cloud sandbox is blocked by the git proxy
+(repo-not-authorized 403). **claude.ai/code hits the same wall** — it is not a
+workaround, don't send the author there. What actually works:
+
+- **A shell on the author's own machine** (e.g. Cowork's `device_bash`) is the
+  path. Clone, commit, and `git push` *there*: it runs from the author's
+  machine, so it bypasses the sandbox proxy, and it's native git — fast, and it
+  handles the **binary covers** a text-only connector can't. Gotchas that will
+  bite: clone into the machine's **native** filesystem, not a mounted/synced
+  folder (git's config-lock fails on those — Windows especially); the shell
+  starts with **no stored credentials**, so supply the PAT for the push, and it
+  may need re-supplying each session; and you can't delete files under a mounted
+  folder.
+- **The text-only GitHub connector (GitHub MCP)** is a *fallback for text
+  commits only*. It cannot push binaries (the covers), and it's far slower —
+  one API call per file. Fine for a one-line text fix, wrong for the initial
+  push.
+
+**The PAT** (fine-grained): scope it to the **one repo**, **Contents:
+read/write**, plus **Workflows: read/write** *only* if you'll push anything
+under `.github/workflows/`. Nothing else.
+
+### Cloudflare
+
+Full steps in `README.md` → "Deploying to Cloudflare". The traps worth stating
+here: it's **Workers, not Pages**; set `name` in `wrangler.toml` to the Worker's
+actual name (the template default `author-geo` will mis-target the deploy);
+build command `npm run build`, `NODE_VERSION` 22+; `keep_vars = true` is already
+set so deploys don't wipe your secrets. Tier 2 secrets are Worker **runtime**
+vars — **except `TURNSTILE_SITE_KEY`, which is a *build* variable.** A
+runtime-only Turnstile key is invisible at build, so the contact form's widget
+never renders even though the key "is set." This one catches everyone.
