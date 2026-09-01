@@ -60,10 +60,11 @@ export const siteConfig = {
 
   // --- Header nav --------------------------------------------------------
   // Rendered in the header per `header.layout` above, after the brand
-  // (logo/wordmark). /contact ships as a static form (Tier 1); it doesn't
-  // actually deliver mail until the /api/contact endpoint is wired in Tier 2
-  // — see README "Contact form". Remove this nav entry if you'd rather hide
-  // the page until that's live.
+  // (logo/wordmark). The /contact link is shown ONLY when the contact form is
+  // enabled (TURNSTILE_SITE_KEY set at build) — the header auto-hides it
+  // otherwise, in lockstep with the page itself not being built (see
+  // astro.config.mjs), so you can leave this entry here whether or not the
+  // contact form is live yet.
   nav: [
     { label: 'Series', href: '/series' },
     { label: 'About', href: '/about' },
@@ -85,7 +86,11 @@ export const siteConfig = {
     // setting provider to that same <name> here -- no upstream file edited.
     // The `(string & {})` union member keeps 'mailerlite'/'emailoctopus'
     // autocompleting as before while still accepting any custom name.
-    provider: 'mailerlite' as 'mailerlite' | 'emailoctopus' | (string & {}),
+    // Unset by default so a fresh deploy needs zero secrets: with no provider
+    // chosen, the homepage newsletter signup is not rendered at all (opt-in).
+    // Set this to 'mailerlite' or 'emailoctopus' (and fill the matching .env
+    // key) to turn the signup on.
+    provider: undefined as 'mailerlite' | 'emailoctopus' | (string & {}) | undefined,
     doubleOptIn: true,        // config option — single vs double opt-in (EmailOctopus:
                                // PENDING vs SUBSCRIBED status; MailerLite has no per-call
                                // equivalent -- it's a group-level dashboard setting there)
