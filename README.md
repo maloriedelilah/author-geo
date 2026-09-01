@@ -478,17 +478,30 @@ first place — there's no separate flag to set.
 
 ### 6. Secrets — `.env` (Tier 2)
 
-Copy `.env.example` to `.env` for local dev/build-testing. Two independent
-groups, at different stages:
+Copy `.env.example` to `.env` for local dev/build-testing; in production, set
+each value where the table says. Both Tier 2 features are **opt-in**: with none
+of these set, the site builds green and simply ships without the contact page
+and the newsletter signup.
 
-- **Newsletter** (`MAILERLITE_API_KEY`, or `EMAILOCTOPUS_API_KEY` +
-  `EMAILOCTOPUS_LIST_ID`) — **live**, consumed by `/api/subscribe` right now
-  (see [Newsletter signup](#newsletter-signup) for which one is required,
-  matching `siteConfig.leads.provider`).
-- **Contact form** (`RESEND_API_KEY`, `CONTACT_FROM_EMAIL`, `CONTACT_TO_EMAIL`,
-  `TURNSTILE_SECRET_KEY`, `TURNSTILE_SITE_KEY`) — **live**, consumed by
-  `/api/contact` right now (see [Contact form](#contact-form) for the full
-  table of which is a real secret vs. a public build-time value).
+**The whole environment, one table:**
+
+| Var | Feature | Build or runtime? | Secret? | If unset |
+|-----|---------|-------------------|---------|----------|
+| `TURNSTILE_SITE_KEY` | Contact | **Build** — `.env` locally; a plain **build variable** in Cloudflare's Git build settings, NOT a Worker runtime secret | No (public, like reCAPTCHA's site key) | `/contact` isn't built; the build succeeds and logs why |
+| `TURNSTILE_SECRET_KEY` | Contact | Runtime — Worker secret | **Yes** | Form renders but every submission fails the spam check (`400`) |
+| `RESEND_API_KEY` | Contact | Runtime — Worker secret | **Yes** | Submissions pass Turnstile, then fail to send (`502`) |
+| `CONTACT_FROM_EMAIL` | Contact | Runtime — Worker var | No, but private | Sends fail — must be a sender on your Resend-verified domain |
+| `CONTACT_TO_EMAIL` | Contact | Runtime — Worker var | No, but private | Sends fail — the destination inbox, never rendered to the browser |
+| `MAILERLITE_API_KEY` | Newsletter | Runtime — Worker secret | **Yes** | Signups `500` when `leads.provider === 'mailerlite'` |
+| `EMAILOCTOPUS_API_KEY` | Newsletter | Runtime — Worker secret | **Yes** | Signups `500` when `leads.provider === 'emailoctopus'` |
+| `EMAILOCTOPUS_LIST_ID` | Newsletter | Runtime — Worker var | No, but private | Needed for EmailOctopus unless a per-form `listId` prop is supplied |
+
+The newsletter has one more switch that is **config, not env**:
+`siteConfig.leads.provider` (`src/config.ts`). Unset (the default), the homepage
+signup isn't rendered at all; the API keys above only matter once a provider is
+chosen. Step-by-step turn-on runbooks for both features:
+[Turning on the contact form](#turning-on-the-contact-form-tier-2) and
+[Turning on the newsletter](#turning-on-the-newsletter-tier-2).
 
 **Never commit real values** — set them as Cloudflare **Worker** environment
 variables/secrets in production (see
@@ -667,6 +680,11 @@ every other route is still a plain prerendered static file (see the deploy-model
 callout in [Deploying to Cloudflare](#deploying-to-cloudflare) for why only this
 one route needed a real server).
 
+**Opt-in:** with `TURNSTILE_SITE_KEY` unset at build, `/contact` simply isn't
+built (and the header drops its nav link) — the build succeeds and logs why.
+Nothing below is required until you decide to turn the form on; the runbook is
+[Turning on the contact form](#turning-on-the-contact-form-tier-2).
+
 **Why there's no `mailto:` link or visible email address anywhere on the
 page:** any address in the page source gets scraped by spam bots within days.
 The whole design point of routing this through a server-side endpoint is that
@@ -692,7 +710,7 @@ Resend/Turnstile quota as possible):
 | `CONTACT_FROM_EMAIL` | Cloudflare Worker env var | no, but private | Must be a sender verified on a domain you've set up in Resend. |
 | `CONTACT_TO_EMAIL` | Cloudflare Worker env var | no, but private | Your real inbox — never rendered to the browser or committed. |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Worker env var | **yes** | Verified server-side only, never sent to the browser. |
-| `TURNSTILE_SITE_KEY` | **build-time** env var (`.env` locally, a plain build variable in Cloudflare's Git-integration build settings — NOT a Worker runtime secret) | no — meant to be public, same as reCAPTCHA's site key | Read in `ContactForm.astro`'s frontmatter (server/build-time render, embedded as `data-sitekey`) to render the widget. Missing it fails `npm run build` loudly rather than silently shipping a form with no spam gate. |
+| `TURNSTILE_SITE_KEY` | **build-time** env var (`.env` locally, a plain build variable in Cloudflare's Git-integration build settings — NOT a Worker runtime secret) | no — meant to be public, same as reCAPTCHA's site key | Read in `ContactForm.astro`'s frontmatter (server/build-time render, embedded as `data-sitekey`) to render the widget. If unset, `/contact` isn't built at all — the build succeeds and logs why (the form is opt-in). |
 
 **Why Resend, not Postmark/MailChannels:** MailChannels' free integration for
 Workers/Pages **ended June 2024** — don't follow older tutorials that assume
@@ -749,7 +767,9 @@ see [Contact form](#contact-form) for why cheapest-first matters):
 **Which provider is active is a CONFIG choice, not an env var** —
 `siteConfig.leads.provider` in `src/config.ts` (`'mailerlite'` |
 `'emailoctopus'` | a custom name, see below). You only need to fill in the
-`.env` block matching whichever one you picked.
+`.env` block matching whichever one you picked. **Unset (the default), the
+homepage signup isn't rendered at all — the feature is opt-in**; the runbook is
+[Turning on the newsletter](#turning-on-the-newsletter-tier-2).
 
 **Required config, all in `.env.example`:**
 
@@ -1048,6 +1068,50 @@ wrangler deploy              # reads wrangler.toml + dist/server/wrangler.json
 ```
 
 Use this for local one-off deploys or a custom CI pipeline.
+
+### Turning on the contact form (Tier 2)
+
+Do this once, after the site is already deploying green without it:
+
+1. **Turnstile widget** — Cloudflare dashboard → **Turnstile** → Add widget.
+   Name it, add your site's hostname (e.g. `orion.example.com`; add `localhost`
+   too if you build locally). Copy the **Site Key** and the **Secret Key**.
+2. **Resend** — [resend.com](https://resend.com) → sign up → **Domains** → add
+   the domain you'll send from → add the DKIM/SPF records it gives you to your
+   DNS (Cloudflare DNS, if the domain lives there; if the domain already has an
+   SPF record, **merge** into it — two SPF records invalidate each other) →
+   wait for **Verified** → **API Keys** → create one.
+3. **Set the values on the Worker** — and mind the split; it's the classic trap:
+   - **Build variable** (the Git build settings, same place as the build
+     command): `TURNSTILE_SITE_KEY` = the Site Key. This is what makes
+     `/contact` exist at all — a runtime-only copy is invisible at build.
+   - **Settings → Variables and Secrets** (runtime): `TURNSTILE_SECRET_KEY` and
+     `RESEND_API_KEY` as secrets; `CONTACT_FROM_EMAIL` (an address on the
+     Resend-verified domain) and `CONTACT_TO_EMAIL` (your real inbox).
+4. **Redeploy** (push any commit, or Retry deployment). `wrangler.toml` already
+   sets `keep_vars = true`, so later deploys won't wipe what you just set.
+5. **Verify** — `/contact` now exists and the nav shows it; send yourself a test
+   message and confirm it lands in `CONTACT_TO_EMAIL`. Failures show up in the
+   Worker's logs (observability for the `/api/*` routes is already on in
+   `wrangler.toml`).
+
+### Turning on the newsletter (Tier 2)
+
+1. **Pick the ESP** and set `siteConfig.leads.provider` in `src/config.ts` —
+   `'mailerlite'` or `'emailoctopus'` (or a custom adapter — see
+   [Newsletter signup](#newsletter-signup)). While it's unset, the homepage
+   signup isn't rendered.
+2. **Get the key(s)** — MailerLite: account → API token. EmailOctopus: API key,
+   plus the target list's ID.
+3. **Set them** as Worker **runtime** secrets: `MAILERLITE_API_KEY`, or
+   `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`.
+4. **Commit the config change and push** — the provider choice is baked at
+   build (it's config, not an env var), so this one needs a commit and
+   redeploy, not just dashboard variables.
+5. **Verify** — the signup appears at the bottom of the homepage; subscribe
+   with a real address and confirm the contact shows up in the ESP. A
+   misconfigured provider logs a specific, actionable `500` in the Worker's
+   logs, never a silent success.
 
 ---
 

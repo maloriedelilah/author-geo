@@ -39,6 +39,10 @@ of them are things to discover as a red build on deploy day.
    **Phase 3 — Deploying** for the push mechanics.
 
 Write each decision into config as it's made; don't batch them for the end.
+The full env-var matrix (build vs runtime, secret vs public, what breaks when
+each is unset) is `README.md` → Configuration → "Secrets"; the step-by-step
+turn-on runbooks are README → "Turning on the contact form" / "Turning on the
+newsletter".
 
 ---
 
@@ -237,3 +241,8 @@ set so deploys don't wipe your secrets. Tier 2 secrets are Worker **runtime**
 vars — **except `TURNSTILE_SITE_KEY`, which is a *build* variable.** A
 runtime-only Turnstile key is invisible at build, so the contact form's widget
 never renders even though the key "is set." This one catches everyone.
+
+Turning Tier 2 on afterward (Turnstile + Resend for contact; ESP keys for the
+newsletter): walk the author through README → "Turning on the contact form" /
+"Turning on the newsletter" step by step, and check every variable against the
+one-table matrix in README → Configuration → "Secrets" before calling it done.
