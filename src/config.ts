@@ -91,9 +91,16 @@ export const siteConfig = {
     // Set this to 'mailerlite' or 'emailoctopus' (and fill the matching .env
     // key) to turn the signup on.
     provider: undefined as 'mailerlite' | 'emailoctopus' | (string & {}) | undefined,
-    doubleOptIn: true,        // config option — single vs double opt-in (EmailOctopus:
-                               // PENDING vs SUBSCRIBED status; MailerLite has no per-call
-                               // equivalent -- it's a group-level dashboard setting there)
+    // Single (false) vs double (true) opt-in. DEFAULT IS SINGLE, and this is a
+    // decision to raise WITH THE AUTHOR while building, not silently keep --
+    // see SKILL.md Phase 0, item 3. For EmailOctopus this sets the contact's
+    // status ('subscribed' vs 'pending') and it MUST agree with the list's own
+    // "Double opt-in email" toggle in the EmailOctopus dashboard: `true` here
+    // with the toggle OFF creates contacts stuck in Pending forever (no
+    // confirmation email is ever sent, and they're hidden from the list's
+    // default Subscribed view, so it looks like signups vanished). MailerLite
+    // has no per-call equivalent -- it's a group-level dashboard setting there.
+    doubleOptIn: false,
     groups: [] as string[],   // provider list/group IDs (MailerLite group IDs directly;
                                // for EmailOctopus these become contact tags)
   },

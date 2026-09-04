@@ -29,6 +29,17 @@ of them are things to discover as a red build on deploy day.
    or `emailoctopus` — set `siteConfig.leads.provider`, and get its API key. If
    no, leave `provider` unset and the signup isn't rendered. "Choose the ESP
    later" is how you end up with a form that 500s in production.
+   **Then discuss single vs. double opt-in with the author** — don't just take
+   the default (`siteConfig.leads.doubleOptIn`, which ships as `false`, single
+   opt-in). Lay out the tradeoff (double opt-in = cleaner list and better
+   deliverability, but some readers never click the confirmation; single =
+   every signup lands immediately) and make sure the choice **matches the
+   ESP's own list setting**: on EmailOctopus, `doubleOptIn: true` with the
+   list's "Double opt-in email" toggle off strands every signup in Pending —
+   no confirmation email is ever sent, and Pending contacts are hidden from
+   the list's default Subscribed view, so it looks like signups vanished.
+   MailerLite ignores this flag entirely (opt-in is a group setting in its
+   dashboard).
 4. **Covers.** Every book needs a real cover **committed to the repo** — never
    fetched at build from an external URL, which fails the deploy silently the
    day that URL changes. Collect the images (or the URLs to pull them from) now.

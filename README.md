@@ -332,7 +332,7 @@ links.)
 ```ts
 leads: {
   provider: 'mailerlite',   // 'mailerlite' | 'emailoctopus'
-  doubleOptIn: true,        // single vs. double opt-in
+  doubleOptIn: false,       // single (false) vs. double (true) opt-in — see Newsletter signup
   groups: [],               // provider list/group IDs
 }
 ```
@@ -785,7 +785,14 @@ was wired up (not assumed from older docs/training data):
 - **EmailOctopus** — targets the current v2 API; supports `groups`/`tags`
   (`lead.groups`, resolved from a per-form `groupId`/`listId` prop or
   `siteConfig.leads.groups`) and single-vs-double opt-in via
-  `siteConfig.leads.doubleOptIn` (`PENDING` vs `SUBSCRIBED` status).
+  `siteConfig.leads.doubleOptIn` (`subscribed` vs `pending` status — the
+  API's enum is lowercase). **This must match the list's own "Double opt-in
+  email" toggle in the EmailOctopus dashboard**: `doubleOptIn: true` with the
+  toggle off strands every signup in Pending (no confirmation email is ever
+  sent, and Pending contacts are hidden from the list's default Subscribed
+  view — so it looks like signups vanished). The default is `false` (single
+  opt-in); an AI building a site should raise this choice with the author
+  rather than silently keeping the default — see `SKILL.md` Phase 0.
 - **MailerLite** — targets the current API; `doubleOptIn` has **no**
   per-request equivalent here — it's a group-dashboard setting in
   MailerLite's own UI, not something this endpoint can toggle per call.
@@ -1101,16 +1108,24 @@ Do this once, after the site is already deploying green without it:
    `'mailerlite'` or `'emailoctopus'` (or a custom adapter — see
    [Newsletter signup](#newsletter-signup)). While it's unset, the homepage
    signup isn't rendered.
-2. **Get the key(s)** — MailerLite: account → API token. EmailOctopus: API key,
+2. **Decide single vs. double opt-in with the author** and set
+   `siteConfig.leads.doubleOptIn` (default `false` = single). For
+   EmailOctopus, it must agree with the list's "Double opt-in email" toggle
+   (list → Consent & customisation) — a mismatch silently strands signups in
+   Pending. MailerLite ignores the flag (set opt-in on the group in its
+   dashboard instead).
+3. **Get the key(s)** — MailerLite: account → API token. EmailOctopus: API key,
    plus the target list's ID.
-3. **Set them** as Worker **runtime** secrets: `MAILERLITE_API_KEY`, or
+4. **Set them** as Worker **runtime** secrets: `MAILERLITE_API_KEY`, or
    `EMAILOCTOPUS_API_KEY` + `EMAILOCTOPUS_LIST_ID`.
-4. **Commit the config change and push** — the provider choice is baked at
-   build (it's config, not an env var), so this one needs a commit and
-   redeploy, not just dashboard variables.
-5. **Verify** — the signup appears at the bottom of the homepage; subscribe
-   with a real address and confirm the contact shows up in the ESP. A
-   misconfigured provider logs a specific, actionable `500` in the Worker's
+5. **Commit the config change and push** — the provider choice and opt-in
+   mode are baked at build (they're config, not env vars), so this one needs
+   a commit and redeploy, not just dashboard variables.
+6. **Verify** — the signup appears at the bottom of the homepage; subscribe
+   with a real address and confirm the contact shows up in the ESP (with
+   double opt-in, it sits under the list's **Pending** filter until the reader
+   clicks the confirmation — it won't appear in the default Subscribed view).
+   A misconfigured provider logs a specific, actionable `500` in the Worker's
    logs, never a silent success.
 
 ---
