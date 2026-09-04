@@ -93,7 +93,7 @@ export const siteConfig = {
     provider: undefined as 'mailerlite' | 'emailoctopus' | (string & {}) | undefined,
     // Single (false) vs double (true) opt-in. DEFAULT IS SINGLE, and this is a
     // decision to raise WITH THE AUTHOR while building, not silently keep --
-    // see SKILL.md Phase 1, item 3. For EmailOctopus this sets the contact's
+    // see SKILL.md Phase 0, item 3. For EmailOctopus this sets the contact's
     // status ('subscribed' vs 'pending') and it MUST agree with the list's own
     // "Double opt-in email" toggle in the EmailOctopus dashboard: `true` here
     // with the toggle OFF creates contacts stuck in Pending forever (no

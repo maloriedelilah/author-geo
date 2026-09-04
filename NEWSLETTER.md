@@ -52,7 +52,7 @@ form, see the main [README's Contact form section](./README.md#contact-form).
 | What | Where | Notes |
 |---|---|---|
 | Which provider is active | `src/config.ts` → `siteConfig.leads.provider` | `'mailerlite'` \| `'emailoctopus'` \| a custom name (see below). A **config** choice, not an env var — provider choice isn't secret, only the API key/list/group IDs are. |
-| Single vs. double opt-in | `src/config.ts` → `siteConfig.leads.doubleOptIn` | Default `false` (single). **Discuss with the author rather than silently keeping the default** (`SKILL.md` Phase 1). EmailOctopus: `subscribed` vs `pending` status — must agree with the list's "Double opt-in email" toggle, or signups strand in Pending. MailerLite: **no per-request equivalent** — it's a group-dashboard setting in MailerLite's own UI, this flag has no effect there. |
+| Single vs. double opt-in | `src/config.ts` → `siteConfig.leads.doubleOptIn` | Default `false` (single). **Discuss with the author rather than silently keeping the default** (`SKILL.md` Phase 0). EmailOctopus: `subscribed` vs `pending` status — must agree with the list's "Double opt-in email" toggle, or signups strand in Pending. MailerLite: **no per-request equivalent** — it's a group-dashboard setting in MailerLite's own UI, this flag has no effect there. |
 | Default groups/tags | `src/config.ts` → `siteConfig.leads.groups` | Used when a `SubscribeForm` instance doesn't pass its own `groupId`/`listId` prop. |
 | `MAILERLITE_API_KEY` | Cloudflare Worker secret | Required when provider is `'mailerlite'`. |
 | `EMAILOCTOPUS_API_KEY` | Cloudflare Worker secret | Required when provider is `'emailoctopus'`. |
