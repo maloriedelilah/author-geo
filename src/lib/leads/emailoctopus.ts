@@ -12,12 +12,23 @@
 // (nothing to fix there) but was silently NEVER sending `tags` -- lead.groups
 // had nowhere to go before this pass, even though the Lead type has always
 // carried it and MailerLite's sibling adapter already used it. Fixed here.
+//
+// STATUS ENUM CASE (confirmed directly against a live 422 from a real
+// deployed site): EmailOctopus's v2 API only accepts LOWERCASE status
+// values -- "pending" | "subscribed" | "unsubscribed" -- per the Create
+// contact endpoint's documented enum. Uppercase 'PENDING'/'SUBSCRIBED'
+// (what an earlier pass here used) is rejected with a 422:
+// {"errors":[{"detail":"The value you selected is not a valid choice.",
+// "pointer":"/status"}]}. That meant every signup through this adapter
+// failed, silently surfaced to visitors as subscribe.ts's generic
+// "Something went wrong" message -- nothing in a local build/test would
+// have caught this without a real API call.
 import type { LeadAdapter, Lead } from './types';
 
 export interface EmailOctopusOptions {
-  // true (default): status 'PENDING' -- EmailOctopus sends its own
+  // true (default): status 'pending' -- EmailOctopus sends its own
   // confirmation email before the contact counts as subscribed (double
-  // opt-in). false: status 'SUBSCRIBED' -- added immediately, no
+  // opt-in). false: status 'subscribed' -- added immediately, no
   // confirmation step (single opt-in). Wired from siteConfig.leads.doubleOptIn
   // via factory.ts -- this was a declared-but-previously-unused config field.
   doubleOptIn?: boolean;
@@ -40,7 +51,7 @@ export const emailoctopus = (
         // are its segmentation mechanism, so lead.groups maps to `tags` here
         // (see mailerlite.ts, where the same field maps to real group IDs).
         tags: lead.groups && lead.groups.length > 0 ? lead.groups : undefined,
-        status: options.doubleOptIn === false ? 'SUBSCRIBED' : 'PENDING',
+        status: options.doubleOptIn === false ? 'subscribed' : 'pending',
       }),
     });
     if (!res.ok) throw new Error(`EmailOctopus ${res.status}: ${await res.text()}`);
