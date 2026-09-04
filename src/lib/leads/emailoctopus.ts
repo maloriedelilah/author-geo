@@ -23,6 +23,21 @@
 // failed, silently surfaced to visitors as subscribe.ts's generic
 // "Something went wrong" message -- nothing in a local build/test would
 // have caught this without a real API call.
+//
+// ALREADY-SUBSCRIBED HANDLING (also confirmed against a live 409 from the
+// same real deployed site): the Create contact endpoint this adapter calls
+// is create-ONLY. Resubmitting the form for an email already on the list
+// gets `409 {"detail":"List contact already exists.",...,"type":".../v2#
+// already-exists"}`, which subscribe.ts was surfacing as a real 502 to a
+// visitor who did nothing wrong. Deliberately NOT switched to EmailOctopus's
+// upsert endpoint (PUT, same path) to fix this: that endpoint's `tags` field
+// is a different shape (an object of tag -> true/false, not an array), and
+// upserting would reset an already-CONFIRMED contact's status back to
+// whatever this adapter's static config says ('pending'/'subscribed') on
+// every resubmit, which is wrong for someone already active. Treating the
+// 409 as an idempotent success is narrower and safer: it leaves the
+// existing contact's status/tags untouched and just stops reporting "you're
+// already on this list" as a failure.
 import type { LeadAdapter, Lead } from './types';
 
 export interface EmailOctopusOptions {
@@ -54,7 +69,17 @@ export const emailoctopus = (
         status: options.doubleOptIn === false ? 'subscribed' : 'pending',
       }),
     });
-    if (!res.ok) throw new Error(`EmailOctopus ${res.status}: ${await res.text()}`);
+    if (!res.ok) {
+      // Already on this list -- not a failure from the visitor's point of
+      // view, so don't make subscribe.ts report it as one. See the
+      // ALREADY-SUBSCRIBED HANDLING note above for why this doesn't retry
+      // as an upsert instead.
+      if (res.status === 409) {
+        console.log('[emailoctopus] contact already exists — treating resubmit as success');
+        return { ok: true };
+      }
+      throw new Error(`EmailOctopus ${res.status}: ${await res.text()}`);
+    }
     return { ok: true };
   },
 });
